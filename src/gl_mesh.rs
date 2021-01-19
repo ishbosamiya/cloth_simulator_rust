@@ -85,6 +85,20 @@ impl GLMesh {
                 self.verts.as_ptr() as *const gl::types::GLvoid,
                 gl::STATIC_DRAW,
             );
+            // {
+            //     let size = self.verts.len() * std::mem::size_of::<GLVert>();
+            //     let mut data: Vec<GLVert> = Vec::with_capacity(self.verts.len());
+            //     for _ in 0..self.verts.len() {
+            //         data.push(GLVert::new(glm::zero(), glm::zero(), glm::zero()));
+            //     }
+            //     gl::GetBufferSubData(
+            //         gl::ARRAY_BUFFER,
+            //         0,
+            //         size as gl::types::GLsizeiptr,
+            //         data.as_mut_ptr() as *mut gl::types::GLvoid,
+            //     );
+            //     println!("{:?}", data);
+            // }
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
             // bind indices array
@@ -100,6 +114,20 @@ impl GLMesh {
                 self.indices.as_ptr() as *const gl::types::GLvoid,
                 gl::STATIC_DRAW,
             );
+            // {
+            //     let size = self.indices.len() * std::mem::size_of::<gl::types::GLuint>();
+            //     let mut data: Vec<gl::types::GLuint> = Vec::with_capacity(self.indices.len());
+            //     for _ in 0..self.indices.len() {
+            //         data.push(0);
+            //     }
+            //     gl::GetBufferSubData(
+            //         gl::ELEMENT_ARRAY_BUFFER,
+            //         0,
+            //         size as gl::types::GLsizeiptr,
+            //         data.as_mut_ptr() as *mut gl::types::GLvoid,
+            //     );
+            //     println!("{:?}", data);
+            // }
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
 
             let offset = 0;
