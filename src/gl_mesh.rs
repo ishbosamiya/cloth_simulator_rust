@@ -3,6 +3,7 @@ use nalgebra_glm as glm;
 use std::convert::TryInto;
 
 #[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
 pub struct GLVert {
     pub pos: glm::Vec3,
     pub uv: glm::Vec2,
@@ -112,7 +113,7 @@ impl GLMesh {
                 std::mem::size_of::<GLVert>().try_into().unwrap(),
                 offset as *const gl::types::GLvoid,
             );
-            let offset = offset + std::mem::size_of::<glm::DVec3>();
+            let offset = offset + std::mem::size_of::<glm::Vec3>();
             //uv
             gl::EnableVertexAttribArray(1);
             gl::VertexAttribPointer(
@@ -123,7 +124,7 @@ impl GLMesh {
                 std::mem::size_of::<GLVert>().try_into().unwrap(),
                 offset as *const gl::types::GLvoid,
             );
-            let offset = offset + std::mem::size_of::<glm::DVec2>();
+            let offset = offset + std::mem::size_of::<glm::Vec2>();
             //normals
             gl::EnableVertexAttribArray(2);
             gl::VertexAttribPointer(
