@@ -106,7 +106,11 @@ fn handle_window_event(
         _ => {}
     }
     if window.borrow().get_mouse_button(glfw::MouseButtonMiddle) == Action::Press {
-        camera.pan(last_cursor.0, last_cursor.1, cursor.0, cursor.1, 1.0);
+        if window.borrow().get_key(glfw::Key::LeftShift) == Action::Press {
+            camera.pan(last_cursor.0, last_cursor.1, cursor.0, cursor.1, 1.0);
+        } else {
+            camera.rotate_wrt_origin(last_cursor.0, last_cursor.1, cursor.0, cursor.1, 0.1, false);
+        }
     }
     *last_cursor = cursor;
 }

@@ -117,4 +117,30 @@ impl WindowCamera {
 
         self.position -= offset;
     }
+
+    pub fn rotate_wrt_origin(
+        &mut self,
+        mouse_start_x: f64,
+        mouse_start_y: f64,
+        mouse_end_x: f64,
+        mouse_end_y: f64,
+        mouse_sensitivity: f64,
+        constrain_pitch: bool,
+    ) {
+        let x_offset = (mouse_end_x - mouse_start_x) * mouse_sensitivity;
+        let y_offset = (mouse_start_y - mouse_end_y) * mouse_sensitivity;
+
+        self.yaw += x_offset;
+        self.pitch += y_offset;
+
+        if constrain_pitch {
+            if self.pitch > 89.0 {
+                self.pitch = 89.0;
+            } else if self.pitch < -89.0 {
+                self.pitch = -89.0;
+            }
+        }
+
+        self.update_camera_vectors();
+    }
 }
