@@ -73,4 +73,48 @@ impl WindowCamera {
             1000.0,
         );
     }
+
+    pub fn pan(
+        &mut self,
+        mouse_start_x: f64,
+        mouse_start_y: f64,
+        mouse_end_x: f64,
+        mouse_end_y: f64,
+        len: f64,
+    ) {
+        if mouse_start_x == mouse_end_x && mouse_start_y == mouse_end_y {
+            return;
+        }
+        let window = self
+            .window
+            .upgrade()
+            .expect("Window with which camera was made is lost");
+        let (width, height) = window.borrow().get_size();
+        let clip_x = mouse_start_x * 2.0 / width as f64 - 1.0;
+        let clip_y = 1.0 - mouse_start_y * 2.0 / height as f64;
+
+        let clip_end_x = mouse_end_x * 2.0 / width as f64 - 1.0;
+        let clip_end_y = 1.0 - mouse_end_y * 2.0 / height as f64;
+
+        let inverse_mvp = glm::inverse(&(self.get_projection_matrix() * self.get_view_matrix()));
+        let out_vector = inverse_mvp * glm::vec4(clip_x, clip_y, 0.0, 1.0);
+        let world_pos = glm::vec3(
+            out_vector.x / out_vector.w,
+            out_vector.y / out_vector.w,
+            out_vector.z / out_vector.w,
+        );
+
+        let out_end_vector = inverse_mvp * glm::vec4(clip_end_x, clip_end_y, 0.0, 1.0);
+        let world_pos_2 = glm::vec3(
+            out_end_vector.x / out_end_vector.w,
+            out_end_vector.y / out_end_vector.w,
+            out_end_vector.z / out_end_vector.w,
+        );
+
+        let dir = world_pos_2 - world_pos;
+
+        let offset = glm::length(&dir) * glm::normalize(&dir) * self.zoom * len / 2.0;
+
+        self.position -= offset;
+    }
 }

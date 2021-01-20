@@ -28,6 +28,8 @@ fn main() {
     let window = Rc::new(RefCell::new(window));
 
     window.borrow_mut().set_key_polling(true);
+    window.borrow_mut().set_cursor_pos_polling(true);
+    window.borrow_mut().set_mouse_button_polling(true);
     window.borrow_mut().set_framebuffer_size_polling(true);
     window.borrow_mut().make_current();
 
@@ -35,9 +37,9 @@ fn main() {
 
     let mesh = GLMesh::new(
         vec![
-            GLVert::new(glm::vec3(0.5, -0.5, -10.0), glm::zero(), glm::zero()),
-            GLVert::new(glm::vec3(-0.5, -0.5, -10.0), glm::zero(), glm::zero()),
-            GLVert::new(glm::vec3(0.0, 0.5, -10.0), glm::zero(), glm::zero()),
+            GLVert::new(glm::vec3(0.5, -0.5, -1.0), glm::zero(), glm::zero()),
+            GLVert::new(glm::vec3(-0.5, -0.5, -1.0), glm::zero(), glm::zero()),
+            GLVert::new(glm::vec3(0.0, 0.5, -1.0), glm::zero(), glm::zero()),
         ],
         vec![0, 1, 2],
     );
@@ -48,7 +50,7 @@ fn main() {
     )
     .unwrap();
 
-    let camera = WindowCamera::new(
+    let mut camera = WindowCamera::new(
         Rc::downgrade(&window),
         glm::zero(),
         glm::vec3(0.0, 1.0, 0.0),
@@ -57,10 +59,12 @@ fn main() {
         45.0,
     );
 
+    let mut last_cursor = window.borrow().get_cursor_pos();
+
     while !window.borrow().should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
-            handle_window_event(&mut window.borrow_mut(), event);
+            handle_window_event(window.clone(), event, &mut camera, &mut last_cursor);
         }
 
         unsafe {
@@ -81,10 +85,16 @@ fn main() {
     }
 }
 
-fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
+fn handle_window_event(
+    window: Rc<RefCell<glfw::Window>>,
+    event: glfw::WindowEvent,
+    camera: &mut WindowCamera,
+    last_cursor: &mut (f64, f64),
+) {
+    let cursor = window.borrow_mut().get_cursor_pos();
     match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-            window.set_should_close(true);
+            window.borrow_mut().set_should_close(true);
         }
         glfw::WindowEvent::Key(Key::A, _, Action::Press, _) => unsafe {
             gl::ClearColor(random(), random(), random(), 1.0);
@@ -95,4 +105,8 @@ fn handle_window_event(window: &mut glfw::Window, event: glfw::WindowEvent) {
         },
         _ => {}
     }
+    if window.borrow().get_mouse_button(glfw::MouseButtonMiddle) == Action::Press {
+        camera.pan(last_cursor.0, last_cursor.1, cursor.0, cursor.1, 1.0);
+    }
+    *last_cursor = cursor;
 }
