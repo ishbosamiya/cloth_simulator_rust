@@ -2,6 +2,8 @@ use gl;
 use nalgebra_glm as glm;
 use std::convert::TryInto;
 
+use crate::offset_of;
+
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct GLVert {
@@ -85,20 +87,6 @@ impl GLMesh {
                 self.verts.as_ptr() as *const gl::types::GLvoid,
                 gl::STATIC_DRAW,
             );
-            // {
-            //     let size = self.verts.len() * std::mem::size_of::<GLVert>();
-            //     let mut data: Vec<GLVert> = Vec::with_capacity(self.verts.len());
-            //     for _ in 0..self.verts.len() {
-            //         data.push(GLVert::new(glm::zero(), glm::zero(), glm::zero()));
-            //     }
-            //     gl::GetBufferSubData(
-            //         gl::ARRAY_BUFFER,
-            //         0,
-            //         size as gl::types::GLsizeiptr,
-            //         data.as_mut_ptr() as *mut gl::types::GLvoid,
-            //     );
-            //     println!("{:?}", data);
-            // }
 
             // bind indices array
             gl::BindBuffer(
@@ -113,22 +101,7 @@ impl GLMesh {
                 self.indices.as_ptr() as *const gl::types::GLvoid,
                 gl::STATIC_DRAW,
             );
-            // {
-            //     let size = self.indices.len() * std::mem::size_of::<gl::types::GLuint>();
-            //     let mut data: Vec<gl::types::GLuint> = Vec::with_capacity(self.indices.len());
-            //     for _ in 0..self.indices.len() {
-            //         data.push(0);
-            //     }
-            //     gl::GetBufferSubData(
-            //         gl::ELEMENT_ARRAY_BUFFER,
-            //         0,
-            //         size as gl::types::GLsizeiptr,
-            //         data.as_mut_ptr() as *mut gl::types::GLvoid,
-            //     );
-            //     println!("{:?}", data);
-            // }
 
-            let offset = 0;
             // positions
             gl::EnableVertexAttribArray(0);
             gl::VertexAttribPointer(
@@ -137,9 +110,8 @@ impl GLMesh {
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<GLVert>().try_into().unwrap(),
-                offset as *const gl::types::GLvoid,
+                offset_of!(GLVert, pos) as *const gl::types::GLvoid,
             );
-            let offset = offset + std::mem::size_of::<glm::Vec3>();
             //uv
             gl::EnableVertexAttribArray(1);
             gl::VertexAttribPointer(
@@ -148,9 +120,8 @@ impl GLMesh {
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<GLVert>().try_into().unwrap(),
-                offset as *const gl::types::GLvoid,
+                offset_of!(GLVert, uv) as *const gl::types::GLvoid,
             );
-            let offset = offset + std::mem::size_of::<glm::Vec2>();
             //normals
             gl::EnableVertexAttribArray(2);
             gl::VertexAttribPointer(
@@ -159,7 +130,7 @@ impl GLMesh {
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<GLVert>().try_into().unwrap(),
-                offset as *const gl::types::GLvoid,
+                offset_of!(GLVert, normal) as *const gl::types::GLvoid,
             );
 
             gl::BindVertexArray(0);
