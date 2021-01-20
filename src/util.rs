@@ -6,3 +6,8 @@ macro_rules! offset_of {
         &(*(std::ptr::null() as *const $ty)).$field as *const _ as usize
     };
 }
+
+/// str to CStr
+pub fn str_to_cstr(string: &str) -> &std::ffi::CStr {
+    return std::ffi::CStr::from_bytes_with_nul(string.as_bytes()).unwrap();
+}
