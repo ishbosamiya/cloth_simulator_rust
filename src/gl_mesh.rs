@@ -99,7 +99,6 @@ impl GLMesh {
             //     );
             //     println!("{:?}", data);
             // }
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
 
             // bind indices array
             gl::BindBuffer(
@@ -128,7 +127,6 @@ impl GLMesh {
             //     );
             //     println!("{:?}", data);
             // }
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
 
             let offset = 0;
             // positions
