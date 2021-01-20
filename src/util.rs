@@ -9,5 +9,6 @@ macro_rules! offset_of {
 
 /// str to CStr
 pub fn str_to_cstr(string: &str) -> &std::ffi::CStr {
-    return std::ffi::CStr::from_bytes_with_nul(string.as_bytes()).unwrap();
+    return std::ffi::CStr::from_bytes_with_nul(string.as_bytes())
+        .expect("ensure there is a '\\0' at the end of the string");
 }

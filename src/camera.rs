@@ -1,10 +1,11 @@
 use nalgebra_glm as glm;
 extern crate glfw;
 
+use std::cell::RefCell;
 use std::rc::Weak;
 
 pub struct WindowCamera {
-    window: Weak<glfw::Window>,
+    window: Weak<RefCell<glfw::Window>>,
     position: glm::DVec3,
     front: glm::DVec3,
     up: glm::DVec3,
@@ -17,7 +18,7 @@ pub struct WindowCamera {
 
 impl WindowCamera {
     pub fn new(
-        window: Weak<glfw::Window>,
+        window: Weak<RefCell<glfw::Window>>,
         position: glm::DVec3,
         up: glm::DVec3,
         yaw: f64,
@@ -30,7 +31,7 @@ impl WindowCamera {
             yaw,
             pitch,
             world_up: up,
-            front: glm::zero(),
+            front: glm::vec3(0.0, 0.0, -1.0),
             right: glm::zero(),
             up: up,
             zoom,
@@ -64,7 +65,7 @@ impl WindowCamera {
             .window
             .upgrade()
             .expect("Window with which camera was made is lost");
-        let (width, height) = window.get_size();
+        let (width, height) = window.borrow().get_size();
         return glm::perspective(
             self.zoom.to_radians(),
             width as f64 / height as f64,

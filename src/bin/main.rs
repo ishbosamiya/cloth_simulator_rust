@@ -5,6 +5,10 @@ use glfw::{Action, Context, Key};
 use nalgebra_glm as glm;
 use rand::random;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::gl_mesh::{GLMesh, GLVert};
 use cloth_simulator_rust::shader::Shader;
 
@@ -17,46 +21,63 @@ fn main() {
     ));
     #[cfg(target_os = "macos")]
     glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
-    let (mut window, events) = glfw
+    let (window, events) = glfw
         .create_window(1280, 720, "Hello world", glfw::WindowMode::Windowed)
         .expect("Failed to create glfw window");
 
-    window.set_key_polling(true);
-    window.set_framebuffer_size_polling(true);
-    window.make_current();
+    let window = Rc::new(RefCell::new(window));
 
-    gl::load_with(|symbol| window.get_proc_address(symbol));
+    window.borrow_mut().set_key_polling(true);
+    window.borrow_mut().set_framebuffer_size_polling(true);
+    window.borrow_mut().make_current();
+
+    gl::load_with(|symbol| window.borrow_mut().get_proc_address(symbol));
 
     let mesh = GLMesh::new(
         vec![
-            GLVert::new(glm::vec3(0.5, -0.5, 0.0), glm::zero(), glm::zero()),
-            GLVert::new(glm::vec3(-0.5, -0.5, 0.0), glm::zero(), glm::zero()),
-            GLVert::new(glm::vec3(0.0, 0.5, 0.0), glm::zero(), glm::zero()),
+            GLVert::new(glm::vec3(0.5, -0.5, -10.0), glm::zero(), glm::zero()),
+            GLVert::new(glm::vec3(-0.5, -0.5, -10.0), glm::zero(), glm::zero()),
+            GLVert::new(glm::vec3(0.0, 0.5, -10.0), glm::zero(), glm::zero()),
         ],
         vec![0, 1, 2],
     );
 
-    let shader = Shader::new(
-        std::path::Path::new("shaders/test_shader.vs"),
-        std::path::Path::new("shaders/test_shader.fs"),
+    let default_shader = Shader::new(
+        std::path::Path::new("shaders/default_shader.vert"),
+        std::path::Path::new("shaders/default_shader.frag"),
     )
     .unwrap();
 
-    while !window.should_close() {
+    let camera = WindowCamera::new(
+        Rc::downgrade(&window),
+        glm::zero(),
+        glm::vec3(0.0, 1.0, 0.0),
+        -90.0,
+        0.0,
+        45.0,
+    );
+
+    while !window.borrow().should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
-            handle_window_event(&mut window, event);
+            handle_window_event(&mut window.borrow_mut(), event);
         }
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        shader.use_shader();
+        default_shader.use_shader();
+        default_shader.set_mat4(
+            "projection\0",
+            &glm::convert(camera.get_projection_matrix()),
+        );
+        default_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+        default_shader.set_mat4("model\0", &glm::identity());
 
         mesh.draw();
 
-        window.swap_buffers();
+        window.borrow_mut().swap_buffers();
     }
 }
 
