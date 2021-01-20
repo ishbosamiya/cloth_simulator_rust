@@ -118,7 +118,7 @@ impl WindowCamera {
         self.position -= offset;
     }
 
-    pub fn rotate_wrt_origin(
+    pub fn rotate_wrt_camera_origin(
         &mut self,
         mouse_start_x: f64,
         mouse_start_y: f64,
@@ -142,5 +142,19 @@ impl WindowCamera {
         }
 
         self.update_camera_vectors();
+    }
+
+    pub fn move_forward(&mut self, mouse_start_y: f64, mouse_end_y: f64) {
+        let window = self
+            .window
+            .upgrade()
+            .expect("Window with which camera was made is lost");
+        let (_, height) = window.borrow().get_size();
+        let clip_y = 1.0 - mouse_start_y * 2.0 / height as f64;
+        let clip_end_y = 1.0 - mouse_end_y * 2.0 / height as f64;
+
+        let move_by = clip_end_y - clip_y;
+
+        self.position += self.front * move_by;
     }
 }
