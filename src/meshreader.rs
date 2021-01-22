@@ -8,9 +8,7 @@ pub struct MeshReader {
     pub positions: Vec<glm::DVec3>,
     pub uvs: Vec<glm::DVec2>,
     pub normals: Vec<glm::DVec3>,
-    pub face_position_indices: Vec<Vec<usize>>,
-    pub face_uv_indices: Vec<Vec<usize>>,
-    pub face_normal_indices: Vec<Vec<usize>>,
+    pub face_indices: Vec<Vec<(usize, usize, usize)>>,
 }
 
 #[derive(Debug)]
@@ -54,9 +52,7 @@ impl MeshReader {
         let mut positions = Vec::new();
         let mut uvs = Vec::new();
         let mut normals = Vec::new();
-        let mut face_position_indices = Vec::new();
-        let mut face_uv_indices = Vec::new();
-        let mut face_normal_indices = Vec::new();
+        let mut face_indices = Vec::new();
 
         let reader = BufReader::new(fin);
 
@@ -94,52 +90,44 @@ impl MeshReader {
                 "f" => {
                     // Don't currently support face with 2 or lesser verts
                     assert!(vals.len() >= 4);
-                    let mut pos_indices: Vec<usize> = Vec::new();
-                    let mut uv_indices: Vec<usize> = Vec::new();
-                    let mut normal_indices: Vec<usize> = Vec::new();
+                    let mut face_i: Vec<(usize, usize, usize)> = Vec::new();
                     for val in vals.iter().skip(1) {
                         let indices: Vec<&str> = val.split('/').collect();
                         match indices.len() {
                             // only positions
                             1 => {
                                 let pos_index: usize = indices[0].parse().unwrap();
-                                pos_indices.push(pos_index - 1);
+                                face_i.push((pos_index - 1, usize::MAX, usize::MAX));
                             }
                             // positions and texture coordinates
                             2 => {
                                 let pos_index: usize = indices[0].parse().unwrap();
                                 let uv_index: usize = indices[1].parse().unwrap();
-                                pos_indices.push(pos_index - 1);
-                                uv_indices.push(uv_index - 1);
+                                face_i.push((pos_index - 1, uv_index - 1, usize::MAX));
                             }
                             // positions, texture coordinates and normals
                             3 => {
                                 let pos_index: usize = indices[0].parse().unwrap();
-                                let mut uv_index: Option<usize> = None;
+                                let mut uv_index: usize;
                                 if indices[1] != "" {
-                                    uv_index = Some(indices[1].parse().unwrap());
+                                    uv_index = indices[1].parse().unwrap();
+                                } else {
+                                    uv_index = usize::MAX;
                                 }
                                 let normal_index: usize = indices[2].parse().unwrap();
-                                pos_indices.push(pos_index - 1);
-                                match uv_index {
-                                    Some(index) => uv_indices.push(index - 1),
-                                    _ => (),
+                                if uv_index == usize::MAX {
+                                    face_i.push((pos_index - 1, uv_index, normal_index - 1));
+                                } else {
+                                    face_i.push((pos_index - 1, uv_index - 1, normal_index - 1));
                                 }
-                                normal_indices.push(normal_index - 1);
                             }
                             _ => {
                                 return Err(MeshReaderError::InvalidFile);
                             }
                         }
                     }
-                    assert!(pos_indices.len() != 0);
-                    face_position_indices.push(pos_indices);
-                    if uv_indices.len() != 0 {
-                        face_uv_indices.push(uv_indices);
-                    }
-                    if normal_indices.len() != 0 {
-                        face_normal_indices.push(normal_indices);
-                    }
+                    assert!(face_i.len() != 0);
+                    face_indices.push(face_i);
                 }
                 _ => {
                     continue;
@@ -153,9 +141,7 @@ impl MeshReader {
             positions,
             uvs,
             normals,
-            face_position_indices,
-            face_uv_indices,
-            face_normal_indices,
+            face_indices,
         });
     }
 }
@@ -169,12 +155,8 @@ mod tests {
         assert_eq!(data.positions.len(), 5);
         assert_eq!(data.uvs.len(), 6);
         assert_eq!(data.normals.len(), 2);
-        assert_eq!(data.face_position_indices.len(), 2);
-        assert_eq!(data.face_position_indices[0].len(), 3);
-        assert_eq!(data.face_uv_indices.len(), 2);
-        assert_eq!(data.face_uv_indices[0].len(), 3);
-        assert_eq!(data.face_normal_indices.len(), 2);
-        assert_eq!(data.face_normal_indices[0].len(), 3);
+        assert_eq!(data.face_indices.len(), 2);
+        assert_eq!(data.face_indices[0].len(), 3);
         assert_eq!(data.positions[0], glm::vec3(0.778921, 1.572047, -0.878382));
     }
     #[test]
