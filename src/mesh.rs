@@ -3,57 +3,56 @@ use nalgebra_glm as glm;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
-pub struct Node<ExtraData = ()> {
+pub struct Node {
     id: usize,
     pos: glm::DVec3,
-    extra_data: Option<ExtraData>,
 
     verts: IncidentVerts,
 }
 
-pub struct Vertex<ExtraData = ()> {
+pub struct Vertex {
     id: usize,
     uv: Option<glm::DVec2>,
-    extra_data: Option<ExtraData>,
 
     node: RefToNode,
     edges: IncidentEdges,
 }
 
-pub struct Edge<ExtraData = ()> {
+pub struct Edge {
     id: usize,
-    extra_data: Option<ExtraData>,
 
     verts: Option<(AdjacentVert, AdjacentVert)>,
     faces: IncidentFaces,
 }
 
-pub struct Face<ExtraData = ()> {
+pub struct Face {
     id: usize,
     normal: Option<glm::DVec3>,
-    extra_data: Option<ExtraData>,
 
     edges: AdjacentEdges,
 }
 
-pub struct Mesh<ExtraDataVertex = (), ExtraDataEdge = (), ExtraDataFace = ()> {
-    verts: Vec<Rc<RefCell<Vertex<ExtraDataVertex>>>>,
-    edges: Vec<Rc<RefCell<Edge<ExtraDataEdge>>>>,
-    faces: Vec<Rc<RefCell<Face<ExtraDataFace>>>>,
+pub struct Mesh {
+    nodes: Vec<Rc<RefCell<Node>>>,
+    verts: Vec<Rc<RefCell<Vertex>>>,
+    edges: Vec<Rc<RefCell<Edge>>>,
+    faces: Vec<Rc<RefCell<Face>>>,
 }
 
 type IncidentEdges = Vec<Weak<RefCell<Edge>>>;
 type AdjacentVert = Weak<RefCell<Vertex>>;
 type IncidentFaces = Vec<Weak<RefCell<Face>>>;
 type AdjacentEdges = IncidentEdges;
-type RefToNode = Weak<RefCell<Node>>;
 type IncidentVerts = Vec<Weak<RefCell<Vertex>>>;
+type RefToNode = Weak<RefCell<Node>>;
+type RefToVert = Weak<RefCell<Vertex>>;
+type RefToEdge = Weak<RefCell<Edge>>;
+type RefToFace = Weak<RefCell<Face>>;
 
-impl<ExtraDataVertex, ExtraDataEdge, ExtraDataFace>
-    Mesh<ExtraDataVertex, ExtraDataEdge, ExtraDataFace>
-{
-    pub fn new() -> Mesh<ExtraDataVertex, ExtraDataEdge, ExtraDataFace> {
+impl Mesh {
+    pub fn new() -> Mesh {
         return Mesh {
+            nodes: Vec::new(),
             verts: Vec::new(),
             edges: Vec::new(),
             faces: Vec::new(),
@@ -61,23 +60,21 @@ impl<ExtraDataVertex, ExtraDataEdge, ExtraDataFace>
     }
 }
 
-impl<ExtraData> Face<ExtraData> {
-    pub fn new(id: usize) -> Face<ExtraData> {
+impl Face {
+    pub fn new(id: usize) -> Face {
         return Face {
             id,
             normal: None,
-            extra_data: None,
 
             edges: Vec::new(),
         };
     }
 }
 
-impl<ExtraData> Edge<ExtraData> {
-    pub fn new(id: usize) -> Edge<ExtraData> {
+impl Edge {
+    pub fn new(id: usize) -> Edge {
         return Edge {
             id,
-            extra_data: None,
 
             verts: None,
             faces: Vec::new(),
@@ -85,12 +82,11 @@ impl<ExtraData> Edge<ExtraData> {
     }
 }
 
-impl<ExtraData> Vertex<ExtraData> {
-    pub fn new(id: usize) -> Vertex<ExtraData> {
+impl Vertex {
+    pub fn new(id: usize) -> Vertex {
         return Vertex {
             id,
             uv: None,
-            extra_data: None,
 
             node: Weak::new(),
             edges: Vec::new(),
@@ -98,12 +94,12 @@ impl<ExtraData> Vertex<ExtraData> {
     }
 }
 
-impl<ExtraData> Node<ExtraData> {
-    pub fn new(id: usize, pos: glm::DVec3) -> Node<ExtraData> {
+impl Node {
+    pub fn new(id: usize, pos: glm::DVec3) -> Node {
         return Node {
             id,
             pos,
-            extra_data: None,
+
             verts: Vec::new(),
         };
     }
