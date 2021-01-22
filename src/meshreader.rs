@@ -112,12 +112,19 @@ impl MeshReader {
                                 pos_indices.push(pos_index - 1);
                                 uv_indices.push(uv_index - 1);
                             }
+                            // positions, texture coordinates and normals
                             3 => {
                                 let pos_index: usize = indices[0].parse().unwrap();
-                                let uv_index: usize = indices[1].parse().unwrap();
+                                let mut uv_index: Option<usize> = None;
+                                if indices[1] != "" {
+                                    uv_index = Some(indices[1].parse().unwrap());
+                                }
                                 let normal_index: usize = indices[2].parse().unwrap();
                                 pos_indices.push(pos_index - 1);
-                                uv_indices.push(uv_index - 1);
+                                match uv_index {
+                                    Some(index) => uv_indices.push(index - 1),
+                                    _ => (),
+                                }
                                 normal_indices.push(normal_index - 1);
                             }
                             _ => {
@@ -140,6 +147,8 @@ impl MeshReader {
             }
         }
 
+        // TODO(ish): validate the indices
+
         return Ok(MeshReader {
             positions,
             uvs,
@@ -148,5 +157,38 @@ impl MeshReader {
             face_uv_indices,
             face_normal_indices,
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn meshreader_read_obj_test_01() {
+        let data = MeshReader::read_obj(&Path::new("tests/obj_test_01.obj")).unwrap();
+        assert_eq!(data.positions.len(), 5);
+        assert_eq!(data.uvs.len(), 6);
+        assert_eq!(data.normals.len(), 2);
+        assert_eq!(data.face_position_indices.len(), 2);
+        assert_eq!(data.face_position_indices[0].len(), 3);
+        assert_eq!(data.face_uv_indices.len(), 2);
+        assert_eq!(data.face_uv_indices[0].len(), 3);
+        assert_eq!(data.face_normal_indices.len(), 2);
+        assert_eq!(data.face_normal_indices[0].len(), 3);
+        assert_eq!(data.positions[0], glm::vec3(0.778921, 1.572047, -0.878382));
+    }
+    #[test]
+    fn meshreader_read_obj_test_02() {
+        match MeshReader::read_obj(&Path::new("tests/obj_test_02.obj")) {
+            Err(error) => match error {
+                MeshReaderError::InvalidFile => (),
+                _ => panic!("Should have gotten an invalid file error"),
+            },
+            Ok(_) => panic!("Should have gotten an invalid file error"),
+        }
+    }
+    #[test]
+    fn meshreader_read_obj_test_03() {
+        MeshReader::read_obj(&Path::new("tests/obj_test_03.obj")).unwrap();
     }
 }
