@@ -178,6 +178,44 @@ impl Mesh {
                 );
             }
         }
+        // Any node without a vert gets a new vert without uv
+        let mut loose_nodes: Vec<RefToNode> = Vec::new();
+        for node_rc in &self.nodes {
+            let node = node_rc.borrow();
+            if node.verts.len() == 0 {
+                loose_nodes.push(Rc::downgrade(node_rc));
+            }
+        }
+        for node_weak in &loose_nodes {
+            let node_refcell = node_weak.upgrade().unwrap();
+            let mut node = node_refcell.borrow_mut();
+            let vert_weak = self.add_empty_vert();
+            let vert_refcell = vert_weak.upgrade().unwrap();
+            let mut vert = vert_refcell.borrow_mut();
+            vert.node = node_weak.clone();
+            node.verts.push(vert_weak);
+        }
+        // Add the lines to the mesh
+        for line in data.line_indices {
+            for (node_index_1, node_index_2) in line.iter().tuple_windows() {
+                let node_1_rc = self.nodes[*node_index_1].clone();
+                let node_2_rc = self.nodes[*node_index_2].clone();
+                // Assuming that only new edges are to be created with the first vert node.verts
+                assert!(node_1_rc.borrow().verts.len() > 0 && node_2_rc.borrow().verts.len() > 0);
+                let vert_1_weak = &node_1_rc.borrow().verts[0];
+                let vert_2_weak = &node_2_rc.borrow().verts[0];
+                let edge_weak = self.add_empty_edge();
+                let edge_refcell = edge_weak.upgrade().unwrap();
+                let mut edge = edge_refcell.borrow_mut();
+                edge.verts = Some((vert_1_weak.clone(), vert_2_weak.clone()));
+                let vert_1_refcell = vert_1_weak.upgrade().unwrap();
+                let vert_2_refcell = vert_2_weak.upgrade().unwrap();
+                let mut vert_1 = vert_1_refcell.borrow_mut();
+                let mut vert_2 = vert_2_refcell.borrow_mut();
+                vert_1.edges.push(edge_weak.clone());
+                vert_2.edges.push(edge_weak);
+            }
+        }
 
         return Ok(());
     }
@@ -382,17 +420,19 @@ mod tests {
         for face in &mesh.faces {
             assert_eq!(face.borrow().edges.len(), 3);
         }
-        assert_eq!(mesh.edges.len(), 6);
+        assert_eq!(mesh.edges.len(), 7);
         for edge in &mesh.edges {
-            assert_eq!(edge.borrow().faces.len(), 1);
+            let len = edge.borrow().faces.len();
+            assert!(len == 1 || len == 0);
             match edge.borrow().verts {
                 Some(_) => assert!(true),
                 None => assert!(false),
             }
         }
-        assert_eq!(mesh.verts.len(), 6);
+        assert_eq!(mesh.verts.len(), 7);
         for vert in &mesh.verts {
-            assert_eq!(vert.borrow().edges.len(), 2);
+            let len = vert.borrow().edges.len();
+            assert!(len == 1 || len == 2 || len == 3);
         }
         assert_eq!(mesh.nodes.len(), 5);
         for node in &mesh.nodes {

@@ -142,7 +142,8 @@ impl MeshReader {
                     assert!(vals.len() >= 3);
                     let mut indices: Vec<usize> = Vec::new();
                     for val in vals.iter().skip(1) {
-                        indices.push(val.parse().unwrap());
+                        let index: usize = val.parse().unwrap();
+                        indices.push(index - 1);
                     }
                     line_indices.push(indices);
                 }
