@@ -44,6 +44,29 @@ pub struct Mesh {
     gl_mesh: Option<GLMesh>,
 }
 
+#[derive(Debug)]
+pub enum MeshError {
+    MeshReader(MeshReaderError),
+    NoUV,
+}
+
+impl From<MeshReaderError> for MeshError {
+    fn from(err: MeshReaderError) -> MeshError {
+        return MeshError::MeshReader(err);
+    }
+}
+
+impl std::fmt::Display for MeshError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MeshError::MeshReader(error) => write!(f, "{}", error),
+            MeshError::NoUV => write!(f, "No UV information found"),
+        }
+    }
+}
+
+impl std::error::Error for MeshError {}
+
 type IncidentEdges = Vec<Weak<RefCell<Edge>>>;
 type AdjacentVert = Weak<RefCell<Vertex>>;
 type AdjacentVerts = Vec<Weak<RefCell<Vertex>>>;
@@ -88,8 +111,12 @@ impl Mesh {
         return Rc::downgrade(self.faces.last().unwrap());
     }
 
-    pub fn read(&mut self, path: &Path) -> Result<(), MeshReaderError> {
+    pub fn read(&mut self, path: &Path) -> Result<(), MeshError> {
         let data = MeshReader::read(path)?;
+
+        if data.uvs.len() == 0 {
+            return Err(MeshError::NoUV);
+        }
 
         // Create all the nodes
         for pos in data.positions {
