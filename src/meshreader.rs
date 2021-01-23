@@ -9,6 +9,8 @@ pub struct MeshReader {
     pub uvs: Vec<glm::DVec2>,
     pub normals: Vec<glm::DVec3>,
     pub face_indices: Vec<Vec<(usize, usize, usize)>>,
+    pub face_has_uv: bool,
+    pub face_has_normal: bool,
 }
 
 #[derive(Debug)]
@@ -53,6 +55,8 @@ impl MeshReader {
         let mut uvs = Vec::new();
         let mut normals = Vec::new();
         let mut face_indices = Vec::new();
+        let mut face_has_uv = false;
+        let mut face_has_normal = false;
 
         let reader = BufReader::new(fin);
 
@@ -104,6 +108,7 @@ impl MeshReader {
                                 let pos_index: usize = indices[0].parse().unwrap();
                                 let uv_index: usize = indices[1].parse().unwrap();
                                 face_i.push((pos_index - 1, uv_index - 1, usize::MAX));
+                                face_has_uv = true;
                             }
                             // positions, texture coordinates and normals
                             3 => {
@@ -120,6 +125,8 @@ impl MeshReader {
                                 } else {
                                     face_i.push((pos_index - 1, uv_index - 1, normal_index - 1));
                                 }
+                                face_has_uv = true;
+                                face_has_normal = true;
                             }
                             _ => {
                                 return Err(MeshReaderError::InvalidFile);
@@ -142,6 +149,8 @@ impl MeshReader {
             uvs,
             normals,
             face_indices,
+            face_has_uv,
+            face_has_normal,
         });
     }
 }
