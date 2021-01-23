@@ -11,5 +11,6 @@ gl = "0.14.0"
 nalgebra = "0.24.0"
 nalgebra-glm = "0.10.0"
 rand = "0.8.2"
+itertools = "0.10.0"
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"

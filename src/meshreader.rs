@@ -108,7 +108,7 @@ impl MeshReader {
                             // positions, texture coordinates and normals
                             3 => {
                                 let pos_index: usize = indices[0].parse().unwrap();
-                                let mut uv_index: usize;
+                                let uv_index: usize;
                                 if indices[1] != "" {
                                     uv_index = indices[1].parse().unwrap();
                                 } else {
