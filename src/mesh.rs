@@ -8,14 +8,12 @@ use std::rc::{Rc, Weak};
 use crate::meshreader::{MeshReader, MeshReaderError};
 
 pub struct Node {
-    id: usize,
     pub pos: glm::DVec3,
 
     verts: IncidentVerts,
 }
 
 pub struct Vertex {
-    id: usize,
     pub uv: Option<glm::DVec2>,
 
     node: RefToNode,
@@ -23,14 +21,11 @@ pub struct Vertex {
 }
 
 pub struct Edge {
-    id: usize,
-
     verts: Option<(AdjacentVert, AdjacentVert)>,
     faces: IncidentFaces,
 }
 
 pub struct Face {
-    id: usize,
     pub normal: Option<glm::DVec3>,
 
     edges: AdjacentEdges,
@@ -64,26 +59,22 @@ impl Mesh {
     }
 
     pub fn add_empty_node(&mut self, pos: glm::DVec3) -> RefToNode {
-        let id = self.nodes.len();
-        self.nodes.push(Rc::new(RefCell::new(Node::new(id, pos))));
+        self.nodes.push(Rc::new(RefCell::new(Node::new(pos))));
         return Rc::downgrade(self.nodes.last().unwrap());
     }
 
     pub fn add_empty_vert(&mut self) -> RefToVert {
-        let id = self.verts.len();
-        self.verts.push(Rc::new(RefCell::new(Vertex::new(id))));
+        self.verts.push(Rc::new(RefCell::new(Vertex::new())));
         return Rc::downgrade(self.verts.last().unwrap());
     }
 
     pub fn add_empty_edge(&mut self) -> RefToEdge {
-        let id = self.edges.len();
-        self.edges.push(Rc::new(RefCell::new(Edge::new(id))));
+        self.edges.push(Rc::new(RefCell::new(Edge::new())));
         return Rc::downgrade(self.edges.last().unwrap());
     }
 
     pub fn add_empty_face(&mut self) -> RefToFace {
-        let id = self.faces.len();
-        self.faces.push(Rc::new(RefCell::new(Face::new(id))));
+        self.faces.push(Rc::new(RefCell::new(Face::new())));
         return Rc::downgrade(self.faces.last().unwrap());
     }
 
@@ -156,9 +147,8 @@ impl Mesh {
 }
 
 impl Face {
-    pub fn new(id: usize) -> Face {
+    pub fn new() -> Face {
         return Face {
-            id,
             normal: None,
 
             edges: Vec::new(),
@@ -167,10 +157,8 @@ impl Face {
 }
 
 impl Edge {
-    pub fn new(id: usize) -> Edge {
+    pub fn new() -> Edge {
         return Edge {
-            id,
-
             verts: None,
             faces: Vec::new(),
         };
@@ -178,9 +166,8 @@ impl Edge {
 }
 
 impl Vertex {
-    pub fn new(id: usize) -> Vertex {
+    pub fn new() -> Vertex {
         return Vertex {
-            id,
             uv: None,
 
             node: Weak::new(),
@@ -208,9 +195,8 @@ impl Vertex {
 }
 
 impl Node {
-    pub fn new(id: usize, pos: glm::DVec3) -> Node {
+    pub fn new(pos: glm::DVec3) -> Node {
         return Node {
-            id,
             pos,
 
             verts: Vec::new(),
