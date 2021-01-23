@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use cloth_simulator_rust::camera::WindowCamera;
+use cloth_simulator_rust::drawable::Drawable;
 use cloth_simulator_rust::gl_mesh::{GLMesh, GLVert};
 use cloth_simulator_rust::shader::Shader;
 

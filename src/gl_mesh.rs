@@ -2,6 +2,7 @@ use gl;
 use nalgebra_glm as glm;
 use std::convert::TryInto;
 
+use crate::drawable::Drawable;
 use crate::offset_of;
 
 #[repr(C, packed)]
@@ -43,19 +44,6 @@ impl GLMesh {
         mesh.setup();
 
         return mesh;
-    }
-
-    pub fn draw(&self) {
-        unsafe {
-            gl::BindVertexArray(self.vao.unwrap());
-            gl::DrawElements(
-                gl::TRIANGLES,
-                self.indices.len().try_into().unwrap(),
-                gl::UNSIGNED_INT,
-                std::ptr::null(),
-            );
-            gl::BindVertexArray(0);
-        }
     }
 
     fn setup(&mut self) {
@@ -133,6 +121,21 @@ impl GLMesh {
                 offset_of!(GLVert, normal) as *const gl::types::GLvoid,
             );
 
+            gl::BindVertexArray(0);
+        }
+    }
+}
+
+impl Drawable for GLMesh {
+    fn draw(&self) {
+        unsafe {
+            gl::BindVertexArray(self.vao.unwrap());
+            gl::DrawElements(
+                gl::TRIANGLES,
+                self.indices.len().try_into().unwrap(),
+                gl::UNSIGNED_INT,
+                std::ptr::null(),
+            );
             gl::BindVertexArray(0);
         }
     }
