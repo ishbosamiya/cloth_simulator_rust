@@ -114,7 +114,7 @@ impl Mesh {
     pub fn read(&mut self, path: &Path) -> Result<(), MeshError> {
         let data = MeshReader::read(path)?;
 
-        if data.uvs.len() == 0 {
+        if data.uvs.len() == 0 || data.face_has_uv == false {
             return Err(MeshError::NoUV);
         }
 
@@ -398,6 +398,18 @@ mod tests {
         for node in &mesh.nodes {
             let len = node.borrow().verts.len();
             assert!(len == 0 || len == 1 || len == 2);
+        }
+    }
+
+    #[test]
+    fn mesh_no_uv() {
+        let mut mesh = Mesh::new();
+        match mesh.read(&Path::new("tests/obj_test_05_square_no_uv.obj")) {
+            Err(err) => match err {
+                MeshError::NoUV => (),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
         }
     }
 }
