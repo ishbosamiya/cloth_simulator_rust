@@ -11,6 +11,7 @@ pub struct MeshReader {
     pub face_indices: Vec<Vec<(usize, usize, usize)>>,
     pub face_has_uv: bool,
     pub face_has_normal: bool,
+    pub line_indices: Vec<Vec<usize>>,
 }
 
 #[derive(Debug)]
@@ -57,6 +58,7 @@ impl MeshReader {
         let mut face_indices = Vec::new();
         let mut face_has_uv = false;
         let mut face_has_normal = false;
+        let mut line_indices = Vec::new();
 
         let reader = BufReader::new(fin);
 
@@ -136,6 +138,14 @@ impl MeshReader {
                     assert!(face_i.len() != 0);
                     face_indices.push(face_i);
                 }
+                "l" => {
+                    assert!(vals.len() >= 3);
+                    let mut indices: Vec<usize> = Vec::new();
+                    for val in vals.iter().skip(1) {
+                        indices.push(val.parse().unwrap());
+                    }
+                    line_indices.push(indices);
+                }
                 _ => {
                     continue;
                 }
@@ -151,6 +161,7 @@ impl MeshReader {
             face_indices,
             face_has_uv,
             face_has_normal,
+            line_indices,
         });
     }
 }
@@ -167,6 +178,8 @@ mod tests {
         assert_eq!(data.face_indices.len(), 2);
         assert_eq!(data.face_indices[0].len(), 3);
         assert_eq!(data.positions[0], glm::vec3(0.778921, 1.572047, -0.878382));
+        assert_eq!(data.line_indices.len(), 1);
+        assert_eq!(data.line_indices[0].len(), 2);
     }
     #[test]
     fn meshreader_read_obj_test_02() {
