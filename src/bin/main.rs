@@ -107,8 +107,7 @@ fn handle_window_event(
     if window.borrow().get_mouse_button(glfw::MouseButtonMiddle) == Action::Press {
         if window.borrow().get_key(glfw::Key::LeftShift) == Action::Press {
             camera.pan(last_cursor.0, last_cursor.1, cursor.0, cursor.1, 1.0);
-        }
-        if window.borrow().get_key(glfw::Key::LeftControl) == Action::Press {
+        } else if window.borrow().get_key(glfw::Key::LeftControl) == Action::Press {
             camera.move_forward(last_cursor.1, cursor.1);
         } else {
             camera.rotate_wrt_camera_origin(
