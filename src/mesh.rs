@@ -12,6 +12,7 @@ use crate::meshreader::{MeshReader, MeshReaderError};
 
 pub struct Node {
     pub pos: glm::DVec3,
+    pub normal: Option<glm::DVec3>,
 
     verts: IncidentVerts,
 }
@@ -127,17 +128,17 @@ impl Mesh {
             let vert = self.add_empty_vert().upgrade().unwrap();
             vert.borrow_mut().uv = Some(uv);
         }
-        // TODO(ish): add support to store vertex normals
         for face_i in data.face_indices {
             let mut face_edges: AdjacentEdges = Vec::new();
-            for (pos_index, uv_index, _) in &face_i {
+            for (pos_index, uv_index, normal_index) in &face_i {
                 // Update vert to store the node
                 self.verts[*uv_index].borrow_mut().node = Rc::downgrade(&self.nodes[*pos_index]);
                 // Update node to store the vert
-                self.nodes[*pos_index]
-                    .borrow_mut()
-                    .verts
-                    .push(Rc::downgrade(&self.verts[*uv_index]));
+                let mut node = self.nodes[*pos_index].borrow_mut();
+                node.verts.push(Rc::downgrade(&self.verts[*uv_index]));
+                if data.face_has_normal && data.normals.len() > 0 {
+                    node.set_normal(data.normals[*normal_index]);
+                }
             }
             // Update edges and store them to update the face
             for ((_, vi_1, _), (_, vi_2, _)) in face_i.into_iter().circular_tuple_windows() {
@@ -220,7 +221,7 @@ impl Mesh {
         return Ok(());
     }
 
-    pub fn generate_gl_mesh(&mut self) {
+    pub fn generate_gl_mesh(&mut self, use_face_normal: bool) {
         let mut gl_verts: Vec<GLVert> = Vec::new();
         let mut gl_indices: Vec<gl::types::GLuint> = Vec::new();
         for face_rc in &self.faces {
@@ -231,18 +232,35 @@ impl Mesh {
                 let node_refcell = vert.node.upgrade().unwrap();
                 let node = node_refcell.borrow();
                 match vert.uv {
-                    Some(uv) => match face_rc.borrow().normal {
-                        Some(normal) => gl_verts.push(GLVert::new(
-                            glm::convert(node.pos),
-                            glm::convert(uv),
-                            glm::convert(normal),
-                        )),
-                        None => gl_verts.push(GLVert::new(
-                            glm::convert(node.pos),
-                            glm::convert(uv),
-                            glm::zero(),
-                        )),
-                    },
+                    Some(uv) => {
+                        if use_face_normal {
+                            match face_rc.borrow().normal {
+                                Some(normal) => gl_verts.push(GLVert::new(
+                                    glm::convert(node.pos),
+                                    glm::convert(uv),
+                                    glm::convert(normal),
+                                )),
+                                None => gl_verts.push(GLVert::new(
+                                    glm::convert(node.pos),
+                                    glm::convert(uv),
+                                    glm::zero(),
+                                )),
+                            }
+                        } else {
+                            match node.normal {
+                                Some(normal) => gl_verts.push(GLVert::new(
+                                    glm::convert(node.pos),
+                                    glm::convert(uv),
+                                    glm::convert(normal),
+                                )),
+                                None => gl_verts.push(GLVert::new(
+                                    glm::convert(node.pos),
+                                    glm::convert(uv),
+                                    glm::zero(),
+                                )),
+                            }
+                        }
+                    }
                     None => gl_verts.push(GLVert::new(
                         glm::convert(node.pos),
                         glm::zero(),
@@ -392,9 +410,14 @@ impl Node {
     pub fn new(pos: glm::DVec3) -> Node {
         return Node {
             pos,
+            normal: None,
 
             verts: Vec::new(),
         };
+    }
+
+    pub fn set_normal(&mut self, normal: glm::DVec3) {
+        self.normal = Some(normal);
     }
 }
 

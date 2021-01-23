@@ -41,7 +41,7 @@ fn main() {
         "tests/obj_test_04_array_of_ngons.obj",
     ))
     .unwrap();
-    mesh.generate_gl_mesh();
+    mesh.generate_gl_mesh(false);
 
     let default_shader = Shader::new(
         std::path::Path::new("shaders/default_shader.vert"),
