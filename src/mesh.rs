@@ -2,11 +2,12 @@ use itertools::Itertools;
 use nalgebra_glm as glm;
 
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::path::Path;
 use std::rc::{Rc, Weak};
 
 use crate::drawable::Drawable;
-use crate::gl_mesh::GLMesh;
+use crate::gl_mesh::{GLMesh, GLVert};
 use crate::meshreader::{MeshReader, MeshReaderError};
 
 pub struct Node {
@@ -16,6 +17,7 @@ pub struct Node {
 }
 
 pub struct Vertex {
+    id: usize,
     pub uv: Option<glm::DVec2>,
 
     node: RefToNode,
@@ -44,6 +46,7 @@ pub struct Mesh {
 
 type IncidentEdges = Vec<Weak<RefCell<Edge>>>;
 type AdjacentVert = Weak<RefCell<Vertex>>;
+type AdjacentVerts = Vec<Weak<RefCell<Vertex>>>;
 type IncidentFaces = Vec<Weak<RefCell<Face>>>;
 type AdjacentEdges = IncidentEdges;
 type IncidentVerts = Vec<Weak<RefCell<Vertex>>>;
@@ -70,7 +73,8 @@ impl Mesh {
     }
 
     pub fn add_empty_vert(&mut self) -> RefToVert {
-        self.verts.push(Rc::new(RefCell::new(Vertex::new())));
+        let id = self.verts.len();
+        self.verts.push(Rc::new(RefCell::new(Vertex::new(id))));
         return Rc::downgrade(self.verts.last().unwrap());
     }
 
@@ -151,7 +155,69 @@ impl Mesh {
         return Ok(());
     }
 
-    pub fn generate_gl_mesh(&mut self) {}
+    pub fn generate_gl_mesh(&mut self) {
+        let mut gl_verts: Vec<GLVert> = Vec::new();
+        let mut gl_indices: Vec<gl::types::GLuint> = Vec::new();
+        for face_rc in &self.faces {
+            let verts = face_rc.borrow().get_adjacent_verts();
+            for vert_weak in &verts {
+                let vert_refcell = vert_weak.upgrade().unwrap();
+                let vert = vert_refcell.borrow();
+                let node_refcell = vert.node.upgrade().unwrap();
+                let node = node_refcell.borrow();
+                match vert.uv {
+                    Some(uv) => match face_rc.borrow().normal {
+                        Some(normal) => gl_verts.push(GLVert::new(
+                            glm::convert(node.pos),
+                            glm::convert(uv),
+                            glm::convert(normal),
+                        )),
+                        None => gl_verts.push(GLVert::new(
+                            glm::convert(node.pos),
+                            glm::convert(uv),
+                            glm::zero(),
+                        )),
+                    },
+                    None => gl_verts.push(GLVert::new(
+                        glm::convert(node.pos),
+                        glm::zero(),
+                        glm::zero(),
+                    )),
+                }
+            }
+            let vert_weak_1 = &verts[0];
+            for (vert_weak_2, vert_weak_3) in verts.iter().skip(1).tuple_windows() {
+                gl_indices.push(
+                    vert_weak_1
+                        .upgrade()
+                        .unwrap()
+                        .borrow()
+                        .id
+                        .try_into()
+                        .unwrap(),
+                );
+                gl_indices.push(
+                    vert_weak_2
+                        .upgrade()
+                        .unwrap()
+                        .borrow()
+                        .id
+                        .try_into()
+                        .unwrap(),
+                );
+                gl_indices.push(
+                    vert_weak_3
+                        .upgrade()
+                        .unwrap()
+                        .borrow()
+                        .id
+                        .try_into()
+                        .unwrap(),
+                );
+            }
+        }
+        self.gl_mesh = Some(GLMesh::new(gl_verts, gl_indices));
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -200,6 +266,22 @@ impl Face {
             edges: Vec::new(),
         };
     }
+
+    pub fn get_adjacent_verts(&self) -> AdjacentVerts {
+        let mut adjacent_verts: AdjacentVerts = Vec::new();
+        for edge_weak in &self.edges {
+            let edge_refcell = edge_weak.upgrade().unwrap();
+            let edge = edge_refcell.borrow();
+            let (vert_1, vert_2) = edge.verts.as_ref().unwrap();
+            add_as_set(&mut adjacent_verts, vert_1);
+            add_as_set(&mut adjacent_verts, vert_2);
+        }
+        return adjacent_verts;
+    }
+
+    pub fn get_adjacent_edges(&self) -> AdjacentEdges {
+        return self.edges.clone();
+    }
 }
 
 impl Edge {
@@ -212,8 +294,9 @@ impl Edge {
 }
 
 impl Vertex {
-    pub fn new() -> Vertex {
+    pub fn new(id: usize) -> Vertex {
         return Vertex {
+            id,
             uv: None,
 
             node: Weak::new(),

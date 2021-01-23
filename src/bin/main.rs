@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::drawable::Drawable;
-use cloth_simulator_rust::gl_mesh::{GLMesh, GLVert};
+use cloth_simulator_rust::mesh::Mesh;
 use cloth_simulator_rust::shader::Shader;
 
 fn main() {
@@ -36,14 +36,12 @@ fn main() {
 
     gl::load_with(|symbol| window.borrow_mut().get_proc_address(symbol));
 
-    let mesh = GLMesh::new(
-        vec![
-            GLVert::new(glm::vec3(0.5, -0.5, -1.0), glm::zero(), glm::zero()),
-            GLVert::new(glm::vec3(-0.5, -0.5, -1.0), glm::zero(), glm::zero()),
-            GLVert::new(glm::vec3(0.0, 0.5, -1.0), glm::zero(), glm::zero()),
-        ],
-        vec![0, 1, 2],
-    );
+    let mut mesh = Mesh::new();
+    mesh.read(&std::path::Path::new(
+        "tests/obj_test_04_array_of_ngons.obj",
+    ))
+    .unwrap();
+    mesh.generate_gl_mesh();
 
     let default_shader = Shader::new(
         std::path::Path::new("shaders/default_shader.vert"),
@@ -53,7 +51,7 @@ fn main() {
 
     let mut camera = WindowCamera::new(
         Rc::downgrade(&window),
-        glm::zero(),
+        glm::vec3(0.0, 0.0, 3.0),
         glm::vec3(0.0, 1.0, 0.0),
         -90.0,
         0.0,
