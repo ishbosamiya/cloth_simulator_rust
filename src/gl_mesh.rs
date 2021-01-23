@@ -126,8 +126,8 @@ impl GLMesh {
     }
 }
 
-impl Drawable for GLMesh {
-    fn draw(&self) {
+impl Drawable<()> for GLMesh {
+    fn draw(&self) -> Result<(), ()> {
         unsafe {
             gl::BindVertexArray(self.vao.unwrap());
             gl::DrawElements(
@@ -138,5 +138,6 @@ impl Drawable for GLMesh {
             );
             gl::BindVertexArray(0);
         }
+        return Ok(());
     }
 }

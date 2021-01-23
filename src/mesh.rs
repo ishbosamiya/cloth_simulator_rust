@@ -5,6 +5,8 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::{Rc, Weak};
 
+use crate::drawable::Drawable;
+use crate::gl_mesh::GLMesh;
 use crate::meshreader::{MeshReader, MeshReaderError};
 
 pub struct Node {
@@ -36,6 +38,8 @@ pub struct Mesh {
     verts: Vec<Rc<RefCell<Vertex>>>,
     edges: Vec<Rc<RefCell<Edge>>>,
     faces: Vec<Rc<RefCell<Face>>>,
+
+    gl_mesh: Option<GLMesh>,
 }
 
 type IncidentEdges = Vec<Weak<RefCell<Edge>>>;
@@ -55,6 +59,8 @@ impl Mesh {
             verts: Vec::new(),
             edges: Vec::new(),
             faces: Vec::new(),
+
+            gl_mesh: None,
         };
     }
 
@@ -142,6 +148,46 @@ impl Mesh {
             }
         }
 
+        return Ok(());
+    }
+
+    pub fn generate_gl_mesh(&mut self) {}
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum MeshDrawError {
+    GenerateGLMeshFirst,
+    ErrorWhileDrawing,
+}
+
+impl std::fmt::Display for MeshDrawError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MeshDrawError::GenerateGLMeshFirst => {
+                write!(f, "Generate GLMesh before calling draw()")
+            }
+            MeshDrawError::ErrorWhileDrawing => {
+                write!(f, "Error while drawing Mesh")
+            }
+        }
+    }
+}
+
+impl std::error::Error for MeshDrawError {}
+
+impl From<()> for MeshDrawError {
+    fn from(_err: ()) -> MeshDrawError {
+        return MeshDrawError::ErrorWhileDrawing;
+    }
+}
+
+impl Drawable<MeshDrawError> for Mesh {
+    fn draw(&self) -> Result<(), MeshDrawError> {
+        match self.gl_mesh {
+            None => return Err(MeshDrawError::GenerateGLMeshFirst),
+            Some(_) => (),
+        }
+        self.gl_mesh.as_ref().unwrap().draw()?;
         return Ok(());
     }
 }

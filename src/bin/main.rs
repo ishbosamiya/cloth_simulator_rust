@@ -80,7 +80,7 @@ fn main() {
         default_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
         default_shader.set_mat4("model\0", &glm::identity());
 
-        mesh.draw();
+        mesh.draw().unwrap();
 
         window.borrow_mut().swap_buffers();
     }
