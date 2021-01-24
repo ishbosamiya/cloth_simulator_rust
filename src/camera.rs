@@ -56,6 +56,10 @@ impl WindowCamera {
         self.up = glm::normalize(&glm::cross(&self.right, &front));
     }
 
+    pub fn get_position(&self) -> glm::DVec3 {
+        return self.position;
+    }
+
     pub fn get_view_matrix(&self) -> glm::DMat4 {
         return glm::look_at(&self.position, &(self.position + self.front), &self.up);
     }

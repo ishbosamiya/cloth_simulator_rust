@@ -48,6 +48,11 @@ fn main() {
         std::path::Path::new("shaders/default_shader.frag"),
     )
     .unwrap();
+    let directional_light_shader = Shader::new(
+        std::path::Path::new("shaders/directional_light.vert"),
+        std::path::Path::new("shaders/directional_light.frag"),
+    )
+    .unwrap();
 
     let mut camera = WindowCamera::new(
         Rc::downgrade(&window),
@@ -77,6 +82,21 @@ fn main() {
         );
         default_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
         default_shader.set_mat4("model\0", &glm::identity());
+        directional_light_shader.use_shader();
+        directional_light_shader.set_mat4(
+            "projection\0",
+            &glm::convert(camera.get_projection_matrix()),
+        );
+        directional_light_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+        directional_light_shader.set_mat4("model\0", &glm::identity());
+        directional_light_shader.set_vec3("viewPos\0", &glm::convert(camera.get_position()));
+        directional_light_shader.set_vec3("material.color\0", &glm::vec3(0.3, 0.2, 0.7));
+        directional_light_shader.set_vec3("material.specular\0", &glm::vec3(0.3, 0.3, 0.3));
+        directional_light_shader.set_float("material.shininess\0", 4.0);
+        directional_light_shader.set_vec3("light.direction\0", &glm::vec3(-0.7, -1.0, -0.7));
+        directional_light_shader.set_vec3("light.ambient\0", &glm::vec3(0.3, 0.3, 0.3));
+        directional_light_shader.set_vec3("light.diffuse\0", &glm::vec3(1.0, 1.0, 1.0));
+        directional_light_shader.set_vec3("light.specular\0", &glm::vec3(1.0, 1.0, 1.0));
 
         mesh.draw().unwrap();
 
