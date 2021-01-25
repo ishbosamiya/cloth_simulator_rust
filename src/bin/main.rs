@@ -37,10 +37,11 @@ fn main() {
     gl::load_with(|symbol| window.borrow_mut().get_proc_address(symbol));
 
     let mut mesh = Mesh::new();
-    mesh.read(&std::path::Path::new(
-        "tests/obj_test_04_array_of_ngons.obj",
-    ))
-    .unwrap();
+    // mesh.read(&std::path::Path::new("models/monkey_subd_00.obj"))
+    //     .unwrap();
+    // mesh.read(&std::path::Path::new("models/cube.obj")).unwrap();
+    mesh.read(&std::path::Path::new("tests/obj_test_06_winding_test.obj"))
+        .unwrap();
     mesh.generate_gl_mesh(false);
 
     let default_shader = Shader::new(
@@ -51,6 +52,11 @@ fn main() {
     let directional_light_shader = Shader::new(
         std::path::Path::new("shaders/directional_light.vert"),
         std::path::Path::new("shaders/directional_light.frag"),
+    )
+    .unwrap();
+    let face_orientation_shader = Shader::new(
+        std::path::Path::new("shaders/face_orientation.vert"),
+        std::path::Path::new("shaders/face_orientation.frag"),
     )
     .unwrap();
 
@@ -82,6 +88,7 @@ fn main() {
         );
         default_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
         default_shader.set_mat4("model\0", &glm::identity());
+
         directional_light_shader.use_shader();
         directional_light_shader.set_mat4(
             "projection\0",
@@ -98,6 +105,15 @@ fn main() {
         directional_light_shader.set_vec3("light.diffuse\0", &glm::vec3(1.0, 1.0, 1.0));
         directional_light_shader.set_vec3("light.specular\0", &glm::vec3(1.0, 1.0, 1.0));
 
+        face_orientation_shader.use_shader();
+        face_orientation_shader.set_mat4(
+            "projection\0",
+            &glm::convert(camera.get_projection_matrix()),
+        );
+        face_orientation_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+        face_orientation_shader.set_mat4("model\0", &glm::identity());
+
+        // default_shader.use_shader();
         mesh.draw().unwrap();
 
         window.borrow_mut().swap_buffers();
