@@ -163,14 +163,16 @@ impl WindowCamera {
     }
 
     pub fn zoom(&mut self, scroll_y: f64) {
-        if self.zoom >= 1.0 && self.zoom <= 45.0 {
+        let min = 1.0;
+        let max = 90.0;
+        if self.zoom >= min && self.zoom <= max {
             self.zoom -= scroll_y;
         }
-        if self.zoom < 1.0 {
-            self.zoom = 1.0;
+        if self.zoom < min {
+            self.zoom = min;
         }
-        if self.zoom > 45.0 {
-            self.zoom = 45.0;
+        if self.zoom > max {
+            self.zoom = max;
         }
     }
 }
