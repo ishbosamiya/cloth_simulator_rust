@@ -71,8 +71,8 @@ impl WindowCamera {
             .expect("Window with which camera was made is lost");
         let (width, height) = window.borrow().get_size();
         return glm::perspective(
-            self.zoom.to_radians(),
             width as f64 / height as f64,
+            self.zoom.to_radians(),
             0.1,
             1000.0,
         );
@@ -160,5 +160,17 @@ impl WindowCamera {
         let move_by = clip_end_y - clip_y;
 
         self.position += self.front * move_by;
+    }
+
+    pub fn zoom(&mut self, scroll_y: f64) {
+        if self.zoom >= 1.0 && self.zoom <= 45.0 {
+            self.zoom -= scroll_y;
+        }
+        if self.zoom < 1.0 {
+            self.zoom = 1.0;
+        }
+        if self.zoom > 45.0 {
+            self.zoom = 45.0;
+        }
     }
 }

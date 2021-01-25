@@ -32,6 +32,7 @@ fn main() {
     window.borrow_mut().set_cursor_pos_polling(true);
     window.borrow_mut().set_mouse_button_polling(true);
     window.borrow_mut().set_framebuffer_size_polling(true);
+    window.borrow_mut().set_scroll_polling(true);
     window.borrow_mut().make_current();
 
     gl::load_with(|symbol| window.borrow_mut().get_proc_address(symbol));
@@ -42,11 +43,11 @@ fn main() {
     }
 
     let mut mesh = Mesh::new();
-    // mesh.read(&std::path::Path::new("models/monkey_subd_00.obj"))
-    //     .unwrap();
-    // mesh.read(&std::path::Path::new("models/cube.obj")).unwrap();
-    mesh.read(&std::path::Path::new("tests/obj_test_06_winding_test.obj"))
+    mesh.read(&std::path::Path::new("models/monkey_subd_01.obj"))
         .unwrap();
+    // mesh.read(&std::path::Path::new("models/cube.obj")).unwrap();
+    // mesh.read(&std::path::Path::new("tests/obj_test_06_winding_test.obj"))
+    // .unwrap();
     mesh.generate_gl_mesh(false);
 
     let default_shader = Shader::new(
@@ -119,6 +120,8 @@ fn main() {
         face_orientation_shader.set_mat4("model\0", &glm::identity());
 
         // default_shader.use_shader();
+        directional_light_shader.use_shader();
+        // face_orientation_shader.use_shader();
         mesh.draw().unwrap();
 
         window.borrow_mut().swap_buffers();
@@ -143,6 +146,9 @@ fn handle_window_event(
         glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
             gl::Viewport(0, 0, width, height);
         },
+        glfw::WindowEvent::Scroll(_, scroll_y) => {
+            camera.zoom(scroll_y);
+        }
         _ => {}
     }
     if window.borrow().get_mouse_button(glfw::MouseButtonMiddle) == Action::Press {
