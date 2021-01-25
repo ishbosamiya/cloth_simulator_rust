@@ -222,81 +222,77 @@ impl Mesh {
     }
 
     pub fn generate_gl_mesh(&mut self, use_face_normal: bool) {
+        fn store_in_gl_vert(
+            gl_verts: &mut Vec<GLVert>,
+            vert: &Vertex,
+            node: &Node,
+            face_rc: &Rc<RefCell<Face>>,
+            use_face_normal: bool,
+        ) {
+            match vert.uv {
+                Some(uv) => {
+                    if use_face_normal {
+                        match face_rc.borrow().normal {
+                            Some(normal) => gl_verts.push(GLVert::new(
+                                glm::convert(node.pos),
+                                glm::convert(uv),
+                                glm::convert(normal),
+                            )),
+                            None => gl_verts.push(GLVert::new(
+                                glm::convert(node.pos),
+                                glm::convert(uv),
+                                glm::zero(),
+                            )),
+                        }
+                    } else {
+                        match node.normal {
+                            Some(normal) => gl_verts.push(GLVert::new(
+                                glm::convert(node.pos),
+                                glm::convert(uv),
+                                glm::convert(normal),
+                            )),
+                            None => gl_verts.push(GLVert::new(
+                                glm::convert(node.pos),
+                                glm::convert(uv),
+                                glm::zero(),
+                            )),
+                        }
+                    }
+                }
+                None => gl_verts.push(GLVert::new(
+                    glm::convert(node.pos),
+                    glm::zero(),
+                    glm::zero(),
+                )),
+            }
+        }
         let mut gl_verts: Vec<GLVert> = Vec::new();
         let mut gl_indices: Vec<gl::types::GLuint> = Vec::new();
         for face_rc in &self.faces {
             let verts = face_rc.borrow().get_adjacent_verts();
-            for vert_weak in &verts {
-                let vert_refcell = vert_weak.upgrade().unwrap();
-                let vert = vert_refcell.borrow();
-                let node_refcell = vert.node.upgrade().unwrap();
-                let node = node_refcell.borrow();
-                match vert.uv {
-                    Some(uv) => {
-                        if use_face_normal {
-                            match face_rc.borrow().normal {
-                                Some(normal) => gl_verts.push(GLVert::new(
-                                    glm::convert(node.pos),
-                                    glm::convert(uv),
-                                    glm::convert(normal),
-                                )),
-                                None => gl_verts.push(GLVert::new(
-                                    glm::convert(node.pos),
-                                    glm::convert(uv),
-                                    glm::zero(),
-                                )),
-                            }
-                        } else {
-                            match node.normal {
-                                Some(normal) => gl_verts.push(GLVert::new(
-                                    glm::convert(node.pos),
-                                    glm::convert(uv),
-                                    glm::convert(normal),
-                                )),
-                                None => gl_verts.push(GLVert::new(
-                                    glm::convert(node.pos),
-                                    glm::convert(uv),
-                                    glm::zero(),
-                                )),
-                            }
-                        }
-                    }
-                    None => gl_verts.push(GLVert::new(
-                        glm::convert(node.pos),
-                        glm::zero(),
-                        glm::zero(),
-                    )),
-                }
-            }
-            let vert_weak_1 = &verts[0];
-            for (vert_weak_2, vert_weak_3) in verts.iter().skip(1).tuple_windows() {
-                gl_indices.push(
-                    vert_weak_1
-                        .upgrade()
-                        .unwrap()
-                        .borrow()
-                        .id
-                        .try_into()
-                        .unwrap(),
-                );
-                gl_indices.push(
-                    vert_weak_2
-                        .upgrade()
-                        .unwrap()
-                        .borrow()
-                        .id
-                        .try_into()
-                        .unwrap(),
-                );
-                gl_indices.push(
-                    vert_weak_3
-                        .upgrade()
-                        .unwrap()
-                        .borrow()
-                        .id
-                        .try_into()
-                        .unwrap(),
-                );
+            let vert_1_weak = &verts[0];
+            let vert_1_refcell = vert_1_weak.upgrade().unwrap();
+            let vert_1 = vert_1_refcell.borrow();
+            let node_1_refcell = vert_1.node.upgrade().unwrap();
+            let node_1 = node_1_refcell.borrow();
+            let id1 = gl_verts.len();
+            store_in_gl_vert(&mut gl_verts, &vert_1, &node_1, &face_rc, use_face_normal);
+            for (vert_2_weak, vert_3_weak) in verts.iter().skip(1).tuple_windows() {
+                let vert_2_refcell = vert_2_weak.upgrade().unwrap();
+                let vert_2 = vert_2_refcell.borrow();
+                let node_2_refcell = vert_2.node.upgrade().unwrap();
+                let node_2 = node_2_refcell.borrow();
+                let vert_3_refcell = vert_3_weak.upgrade().unwrap();
+                let vert_3 = vert_3_refcell.borrow();
+                let node_3_refcell = vert_3.node.upgrade().unwrap();
+                let node_3 = node_3_refcell.borrow();
+                let id2 = gl_verts.len();
+                store_in_gl_vert(&mut gl_verts, &vert_2, &node_2, &face_rc, use_face_normal);
+                let id3 = gl_verts.len();
+                store_in_gl_vert(&mut gl_verts, &vert_3, &node_3, &face_rc, use_face_normal);
+                gl_indices.push(id1.try_into().unwrap());
+                gl_indices.push(id2.try_into().unwrap());
+                gl_indices.push(id3.try_into().unwrap());
             }
         }
         self.gl_mesh = Some(GLMesh::new(gl_verts, gl_indices));
