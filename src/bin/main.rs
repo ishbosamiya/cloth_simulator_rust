@@ -36,6 +36,11 @@ fn main() {
 
     gl::load_with(|symbol| window.borrow_mut().get_proc_address(symbol));
 
+    unsafe {
+        // gl::Enable(gl::CULL_FACE);
+        gl::Disable(gl::CULL_FACE);
+    }
+
     let mut mesh = Mesh::new();
     // mesh.read(&std::path::Path::new("models/monkey_subd_00.obj"))
     //     .unwrap();

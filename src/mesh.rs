@@ -178,6 +178,7 @@ impl Mesh {
                     &face_ref.clone(),
                 );
             }
+            // face.sort_edges();
         }
         // Any node without a vert gets a new vert without uv
         let mut loose_nodes: Vec<RefToNode> = Vec::new();
@@ -347,6 +348,7 @@ impl Face {
     }
 
     pub fn get_adjacent_verts(&self) -> AdjacentVerts {
+        assert!(self.edges.len() >= 3);
         let mut adjacent_verts: AdjacentVerts = Vec::new();
         for edge_weak in &self.edges {
             let edge_refcell = edge_weak.upgrade().unwrap();
@@ -361,6 +363,137 @@ impl Face {
     pub fn get_adjacent_edges(&self) -> AdjacentEdges {
         return self.edges.clone();
     }
+
+    /// Sort edges based on their winding
+    /// TODO(ish): need to figure out how to ensure consistent winding
+    /// for adjacent faces, right now, when 2 faces call sort_edges()
+    /// it is possible for the edge to be flipped twice, see
+    /// http://www.dillonbhuff.com/?p=30 to get a better idea of this
+    /// problem
+    pub fn sort_edges(&mut self) {
+        let edges_len = self.edges.len();
+        assert!(edges_len >= 3);
+        let mut edges_ordered = Vec::new();
+        let mut remaining_edges = self.edges.clone();
+        let edge_weak = remaining_edges.remove(0);
+        edges_ordered.push(edge_weak.clone());
+        let edge_rc = edge_weak.upgrade().unwrap();
+        let edge = edge_rc.borrow();
+        let vert_weak = &edge.verts.as_ref().unwrap().0;
+        let mut vert_other_weak = edge_rc.borrow().get_other_vert(&vert_weak).unwrap();
+        fn find_edge_in_remaining(
+            remaining_edges: &Vec<Weak<RefCell<Edge>>>,
+            vert: &RefToVert,
+        ) -> Option<(usize, bool)> {
+            for (i, edge_weak) in remaining_edges.iter().enumerate() {
+                let edge_rc = edge_weak.upgrade().unwrap();
+                let edge = edge_rc.borrow();
+                let vert_1_weak = &edge.verts.as_ref().unwrap().0;
+                let vert_2_weak = &edge.verts.as_ref().unwrap().1;
+                if vert_1_weak.ptr_eq(vert) {
+                    return Some((i, false));
+                }
+                if vert_2_weak.ptr_eq(vert) {
+                    return Some((i, true));
+                }
+            }
+            return None;
+        }
+
+        let loop_run_time = remaining_edges.len();
+        for _ in 0..loop_run_time {
+            let (edge_index, swap) =
+                find_edge_in_remaining(&remaining_edges, &vert_other_weak).unwrap();
+            let edge_weak = remaining_edges.remove(edge_index);
+            edges_ordered.push(edge_weak.clone());
+            let edge_rc = edge_weak.upgrade().unwrap();
+            let mut edge_mut = edge_rc.borrow_mut();
+            if swap {
+                edge_mut.swap_verts();
+            }
+            let vert_weak = &edge_mut.verts.as_ref().unwrap().0;
+            vert_other_weak = edge_mut.get_other_vert(&vert_weak).unwrap();
+        }
+
+        drop(edge);
+
+        let rough_norm = self.get_rough_normal_from_vert_normal();
+        let normal = self.calculate_face_normal();
+        if normal.dot(&rough_norm) > 0.0 {
+            self.normal = Some(normal);
+        } else {
+            // print!("before_reverse: ");
+            // _debug_edges_print_order(&edges_ordered);
+            edges_ordered.reverse();
+            for edge_weak in &edges_ordered {
+                let edge_rc = edge_weak.upgrade().unwrap();
+                let mut edge = edge_rc.borrow_mut();
+                edge.swap_verts();
+            }
+            // print!("after_reverse: ");
+            // _debug_edges_print_order(&edges_ordered);
+            self.normal = Some(-normal);
+        }
+
+        // print!("unordered: ");
+        // _debug_edges_print_order(&self.edges);
+        // print!("ordered: ");
+        // _debug_edges_print_order(&edges_ordered);
+
+        self.edges = edges_ordered;
+    }
+
+    fn get_rough_normal_from_vert_normal(&self) -> glm::DVec3 {
+        let verts = self.get_adjacent_verts();
+        assert!(verts.len() >= 3);
+        let vert_1_weak = &verts[0];
+        let vert_1_rc = vert_1_weak.upgrade().unwrap();
+        let vert_1 = vert_1_rc.borrow();
+        let node_1_weak = &vert_1.node;
+        let node_1_rc = node_1_weak.upgrade().unwrap();
+        let node_1 = node_1_rc.borrow();
+        let vert_2_weak = &verts[1];
+        let vert_2_rc = vert_2_weak.upgrade().unwrap();
+        let vert_2 = vert_2_rc.borrow();
+        let node_2_weak = &vert_2.node;
+        let node_2_rc = node_2_weak.upgrade().unwrap();
+        let node_2 = node_2_rc.borrow();
+        let vert_3_weak = &verts[2];
+        let vert_3_rc = vert_3_weak.upgrade().unwrap();
+        let vert_3 = vert_3_rc.borrow();
+        let node_3_weak = &vert_3.node;
+        let node_3_rc = node_3_weak.upgrade().unwrap();
+        let node_3 = node_3_rc.borrow();
+
+        let rough_norm =
+            (node_1.normal.unwrap() + node_2.normal.unwrap() + node_3.normal.unwrap()).normalize();
+        return rough_norm;
+    }
+
+    fn calculate_face_normal(&self) -> glm::DVec3 {
+        let verts = self.get_adjacent_verts();
+        assert!(verts.len() >= 3);
+        let vert_1_weak = &verts[0];
+        let vert_1_rc = vert_1_weak.upgrade().unwrap();
+        let vert_1 = vert_1_rc.borrow();
+        let node_1_weak = &vert_1.node;
+        let node_1_rc = node_1_weak.upgrade().unwrap();
+        let node_1 = node_1_rc.borrow();
+        let vert_2_weak = &verts[1];
+        let vert_2_rc = vert_2_weak.upgrade().unwrap();
+        let vert_2 = vert_2_rc.borrow();
+        let node_2_weak = &vert_2.node;
+        let node_2_rc = node_2_weak.upgrade().unwrap();
+        let node_2 = node_2_rc.borrow();
+        let vert_3_weak = &verts[2];
+        let vert_3_rc = vert_3_weak.upgrade().unwrap();
+        let vert_3 = vert_3_rc.borrow();
+        let node_3_weak = &vert_3.node;
+        let node_3_rc = node_3_weak.upgrade().unwrap();
+        let node_3 = node_3_rc.borrow();
+
+        return glm::triangle_normal(&node_1.pos, &node_2.pos, &node_3.pos);
+    }
 }
 
 impl Edge {
@@ -369,6 +502,37 @@ impl Edge {
             verts: None,
             faces: Vec::new(),
         };
+    }
+
+    pub fn get_other_vert(&self, vert: &RefToVert) -> Option<RefToVert> {
+        match &self.verts {
+            None => return None,
+            Some((v1, v2)) => {
+                if v1.ptr_eq(&vert) {
+                    return Some(v2.clone());
+                } else if v2.ptr_eq(&vert) {
+                    return Some(v1.clone());
+                } else {
+                    return None;
+                }
+            }
+        }
+    }
+
+    pub fn has_face(&self, face: &RefToFace) -> bool {
+        for face_weak in &self.faces {
+            if face_weak.ptr_eq(face) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn swap_verts(&mut self) {
+        self.verts = Some((
+            self.verts.as_ref().unwrap().1.clone(),
+            self.verts.as_ref().unwrap().0.clone(),
+        ));
     }
 }
 
@@ -424,6 +588,47 @@ fn add_as_set<T>(vec: &mut Vec<Weak<RefCell<T>>>, val: &Weak<RefCell<T>>) {
         }
     }
     vec.push(val.clone());
+}
+
+fn _debug_edges_print_order(edges: &Vec<Weak<RefCell<Edge>>>) {
+    for (i, edge_weak) in edges.iter().enumerate() {
+        let edge_rc = edge_weak.upgrade().unwrap();
+        let edge = edge_rc.borrow();
+        if i == 0 {
+            print!(
+                "{}->{}",
+                edge.verts
+                    .as_ref()
+                    .unwrap()
+                    .0
+                    .upgrade()
+                    .unwrap()
+                    .borrow()
+                    .id,
+                edge.verts
+                    .as_ref()
+                    .unwrap()
+                    .1
+                    .upgrade()
+                    .unwrap()
+                    .borrow()
+                    .id
+            );
+        } else {
+            print!(
+                "->{}",
+                edge.verts
+                    .as_ref()
+                    .unwrap()
+                    .1
+                    .upgrade()
+                    .unwrap()
+                    .borrow()
+                    .id
+            );
+        }
+    }
+    println!("");
 }
 
 #[cfg(test)]
