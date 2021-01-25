@@ -142,30 +142,18 @@ impl Mesh {
             }
             // Update edges and store them to update the face
             for ((_, vi_1, _), (_, vi_2, _)) in face_i.into_iter().circular_tuple_windows() {
-                let edge = match self.verts[vi_1]
-                    .borrow()
-                    .get_connecting_edge(&Rc::downgrade(&self.verts[vi_2]))
-                {
-                    Some(edge_ref) => Some(edge_ref),
-                    None => None,
-                };
-
-                let edge = match edge {
-                    Some(edge) => edge,
-                    None => {
-                        let edge_ref = self.add_empty_edge();
-                        let edge_refcell = edge_ref.upgrade().unwrap();
-                        let mut edge = edge_refcell.borrow_mut();
-                        edge.verts = Some((
-                            Rc::downgrade(&self.verts[vi_1]),
-                            Rc::downgrade(&self.verts[vi_2]),
-                        ));
-                        edge_ref
-                    }
-                };
-                self.verts[vi_1].borrow_mut().edges.push(edge.clone());
-                self.verts[vi_2].borrow_mut().edges.push(edge.clone());
-                face_edges.push(edge);
+                // Always create a new edge to ensure that the mesh's faces
+                // can be oriented, otherwise there will be mesh winding cannot be made consistent
+                let edge_ref = self.add_empty_edge();
+                let edge_refcell = edge_ref.upgrade().unwrap();
+                let mut edge = edge_refcell.borrow_mut();
+                edge.verts = Some((
+                    Rc::downgrade(&self.verts[vi_1]),
+                    Rc::downgrade(&self.verts[vi_2]),
+                ));
+                self.verts[vi_1].borrow_mut().edges.push(edge_ref.clone());
+                self.verts[vi_2].borrow_mut().edges.push(edge_ref.clone());
+                face_edges.push(edge_ref);
             }
             // Update face
             let face_ref = self.add_empty_face();
@@ -178,7 +166,7 @@ impl Mesh {
                     &face_ref.clone(),
                 );
             }
-            // face.sort_edges();
+            face.sort_edges();
         }
         // Any node without a vert gets a new vert without uv
         let mut loose_nodes: Vec<RefToNode> = Vec::new();
@@ -365,11 +353,6 @@ impl Face {
     }
 
     /// Sort edges based on their winding
-    /// TODO(ish): need to figure out how to ensure consistent winding
-    /// for adjacent faces, right now, when 2 faces call sort_edges()
-    /// it is possible for the edge to be flipped twice, see
-    /// http://www.dillonbhuff.com/?p=30 to get a better idea of this
-    /// problem
     pub fn sort_edges(&mut self) {
         let edges_len = self.edges.len();
         assert!(edges_len >= 3);
