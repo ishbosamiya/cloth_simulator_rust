@@ -37,8 +37,8 @@ fn main() {
     gl::load_with(|symbol| window.borrow_mut().get_proc_address(symbol));
 
     unsafe {
-        // gl::Enable(gl::CULL_FACE);
         gl::Disable(gl::CULL_FACE);
+        gl::Enable(gl::DEPTH_TEST);
     }
 
     let mut mesh = Mesh::new();
