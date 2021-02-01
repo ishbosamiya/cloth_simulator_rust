@@ -5,6 +5,7 @@ use nalgebra_glm as glm;
 use std::convert::TryInto;
 use std::path::Path;
 
+use crate::drawable::Drawable;
 use crate::gl_mesh::{GLMesh, GLVert};
 use crate::meshreader::{MeshReader, MeshReaderError};
 
@@ -413,6 +414,44 @@ impl Mesh {
         }
 
         self.gl_mesh = Some(GLMesh::new(gl_verts, gl_indices));
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum MeshDrawError {
+    GenerateGLMeshFirst,
+    ErrorWhileDrawing,
+}
+
+impl std::fmt::Display for MeshDrawError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MeshDrawError::GenerateGLMeshFirst => {
+                write!(f, "Generate GLMesh before calling draw()")
+            }
+            MeshDrawError::ErrorWhileDrawing => {
+                write!(f, "Error while drawing Mesh")
+            }
+        }
+    }
+}
+
+impl std::error::Error for MeshDrawError {}
+
+impl From<()> for MeshDrawError {
+    fn from(_err: ()) -> MeshDrawError {
+        return MeshDrawError::ErrorWhileDrawing;
+    }
+}
+
+impl Drawable<MeshDrawError> for Mesh {
+    fn draw(&self) -> Result<(), MeshDrawError> {
+        match self.gl_mesh {
+            None => return Err(MeshDrawError::GenerateGLMeshFirst),
+            Some(_) => (),
+        }
+        self.gl_mesh.as_ref().unwrap().draw()?;
+        return Ok(());
     }
 }
 
