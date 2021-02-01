@@ -2,9 +2,10 @@ use generational_arena::{Arena, Index};
 use itertools::Itertools;
 use nalgebra_glm as glm;
 
+use std::convert::TryInto;
 use std::path::Path;
 
-use crate::gl_mesh::GLMesh;
+use crate::gl_mesh::{GLMesh, GLVert};
 use crate::meshreader::{MeshReader, MeshReaderError};
 
 /// Node stores the world (3D) space coordinates
@@ -332,6 +333,86 @@ impl Mesh {
         }
 
         return Ok(());
+    }
+
+    pub fn generate_gl_mesh(&mut self, use_face_normal: bool) {
+        fn store_in_gl_vert(
+            gl_verts: &mut Vec<GLVert>,
+            vert: &Vert,
+            node: &Node,
+            face: &Face,
+            use_face_normal: bool,
+        ) {
+            match vert.uv {
+                Some(uv) => {
+                    if use_face_normal {
+                        match face.normal {
+                            Some(normal) => gl_verts.push(GLVert::new(
+                                glm::convert(node.pos),
+                                glm::convert(uv),
+                                glm::convert(normal),
+                            )),
+                            None => gl_verts.push(GLVert::new(
+                                glm::convert(node.pos),
+                                glm::convert(uv),
+                                glm::zero(),
+                            )),
+                        }
+                    } else {
+                        match node.normal {
+                            Some(normal) => gl_verts.push(GLVert::new(
+                                glm::convert(node.pos),
+                                glm::convert(uv),
+                                glm::convert(normal),
+                            )),
+                            None => gl_verts.push(GLVert::new(
+                                glm::convert(node.pos),
+                                glm::convert(uv),
+                                glm::zero(),
+                            )),
+                        }
+                    }
+                }
+                None => gl_verts.push(GLVert::new(
+                    glm::convert(node.pos),
+                    glm::zero(),
+                    glm::zero(),
+                )),
+            }
+        }
+
+        let mut gl_verts: Vec<GLVert> = Vec::new();
+        let mut gl_indices: Vec<gl::types::GLuint> = Vec::new();
+
+        for (_, face) in &self.faces {
+            let verts = self.get_adjacent_vert_indices(face).unwrap();
+
+            let vert_1_index = verts[0];
+            let vert_1 = self.verts.get(vert_1_index.0).unwrap();
+            let node_1 = self.nodes.get(vert_1.node.unwrap().0).unwrap();
+
+            let id1 = gl_verts.len();
+            store_in_gl_vert(&mut gl_verts, vert_1, node_1, face, use_face_normal);
+
+            for (vert_2_index, vert_3_index) in verts.iter().skip(1).tuple_windows() {
+                let vert_2 = self.verts.get(vert_2_index.0).unwrap();
+                let vert_3 = self.verts.get(vert_3_index.0).unwrap();
+
+                let node_2 = self.nodes.get(vert_2.node.unwrap().0).unwrap();
+                let node_3 = self.nodes.get(vert_3.node.unwrap().0).unwrap();
+
+                let id2 = gl_verts.len();
+                store_in_gl_vert(&mut gl_verts, vert_2, node_2, face, use_face_normal);
+                let id3 = gl_verts.len();
+                store_in_gl_vert(&mut gl_verts, vert_3, node_3, face, use_face_normal);
+
+                gl_indices.push(id1.try_into().unwrap());
+                gl_indices.push(id2.try_into().unwrap());
+                gl_indices.push(id3.try_into().unwrap());
+            }
+        }
+
+        self.gl_mesh = Some(GLMesh::new(gl_verts, gl_indices));
     }
 }
 
