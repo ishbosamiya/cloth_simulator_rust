@@ -43,7 +43,7 @@ pub struct Vert {
 pub struct Edge {
     self_index: EdgeIndex,
 
-    verts: AdjacentVerts,
+    verts: Option<(VertIndex, VertIndex)>,
     face: IncidentFace,
 }
 
@@ -71,19 +71,23 @@ pub struct Mesh {
 }
 
 /// Index of Node in Mesh.nodes
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeIndex(Index);
 /// Index of Vert in Mesh.nodes
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VertIndex(Index);
 /// Index of Edge in Mesh.nodes
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EdgeIndex(Index);
 /// Index of Face in Mesh.nodes
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FaceIndex(Index);
 
 type IncidentVerts = Vec<VertIndex>;
 type IncidentEdges = Vec<EdgeIndex>;
 type IncidentFace = Option<FaceIndex>;
 type AdjacentEdges = IncidentEdges;
-type AdjacentVerts = Option<(VertIndex, VertIndex)>;
+type AdjacentVerts = IncidentVerts;
 
 /// Errors during operations on Mesh
 #[derive(Debug)]
@@ -121,6 +125,9 @@ impl Mesh {
         };
     }
 
+    /// Adds an empty Node and gives back mutable reference to it
+    ///
+    /// Use with caution
     pub fn add_empty_node(&mut self, pos: glm::DVec3) -> &mut Node {
         let node_index = self.nodes.insert_with(|self_index| {
             return Node::new(NodeIndex(self_index), pos);
@@ -128,6 +135,9 @@ impl Mesh {
         return &mut self.nodes[node_index];
     }
 
+    /// Adds an empty Vert and gives back mutable reference to it
+    ///
+    /// Use with caution
     pub fn add_empty_vert(&mut self) -> &mut Vert {
         let vert_index = self.verts.insert_with(|self_index| {
             return Vert::new(VertIndex(self_index));
@@ -135,6 +145,9 @@ impl Mesh {
         return &mut self.verts[vert_index];
     }
 
+    /// Adds an empty Edge and gives back mutable reference to it
+    ///
+    /// Use with caution
     pub fn add_empty_edge(&mut self) -> &mut Edge {
         let edge_index = self.edges.insert_with(|self_index| {
             return Edge::new(EdgeIndex(self_index));
@@ -142,11 +155,50 @@ impl Mesh {
         return &mut self.edges[edge_index];
     }
 
+    /// Adds an empty Face and gives back mutable reference to it
+    ///
+    /// Use with caution
     pub fn add_empty_face(&mut self) -> &mut Face {
         let face_index = self.faces.insert_with(|self_index| {
             return Face::new(FaceIndex(self_index));
         });
         return &mut self.faces[face_index];
+    }
+
+    /// Gives set of vert indices that are adjacent to the face
+    pub fn get_adjacent_vert_indices(&self, face: &Face) -> Option<AdjacentVerts> {
+        assert!(self.edges.len() > 2);
+        let mut adjacent_verts = Vec::new();
+
+        for edge_index in &face.edges {
+            let edge = self.edges.get(edge_index.0)?;
+            let (vert_1, vert_2) = edge.verts.as_ref()?;
+            add_as_set(&mut adjacent_verts, *vert_1);
+            add_as_set(&mut adjacent_verts, *vert_2);
+        }
+
+        return Some(adjacent_verts);
+    }
+
+    /// Gives the list of connecting edges indices if there exists at least one
+    pub fn get_connecting_edges_indices(
+        &self,
+        vert_1_index: VertIndex,
+        vert_2_index: VertIndex,
+    ) -> Option<IncidentEdges> {
+        let mut edges = Vec::new();
+
+        for edge_index in &self.verts.get(vert_1_index.0)?.edges {
+            let edge = self.edges.get(edge_index.0)?;
+            if edge.has_vert(vert_2_index) {
+                edges.push(*edge_index);
+            }
+        }
+
+        if edges.len() > 0 {
+            return Some(edges);
+        }
+        return None;
     }
 }
 
@@ -169,6 +221,51 @@ impl Edge {
             verts: None,
             face: None,
         };
+    }
+
+    /// Checks if self has the vert specified via VertIndex
+    pub fn has_vert(&self, vert_index: VertIndex) -> bool {
+        match self.verts {
+            Some((v1_index, v2_index)) => {
+                if v1_index == vert_index {
+                    return true;
+                } else if v2_index == vert_index {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            None => {
+                return false;
+            }
+        }
+    }
+
+    /// Returns the other vert's index given that a valid index (an
+    /// index part of self.verts) otherwise returns None
+    pub fn get_other_vert_index(&self, vert_index: VertIndex) -> Option<VertIndex> {
+        match self.verts {
+            Some((v1_index, v2_index)) => {
+                if v1_index == vert_index {
+                    return Some(v2_index);
+                } else if v2_index == vert_index {
+                    return Some(v1_index);
+                } else {
+                    return None;
+                }
+            }
+            None => return None,
+        }
+    }
+
+    /// Swaps the ordering of the vert indices in self.verts if it exists
+    pub fn swap_verts(&mut self) {
+        match self.verts {
+            Some((v1_index, v2_index)) => {
+                self.verts = Some((v2_index, v1_index));
+            }
+            _ => (),
+        }
     }
 }
 
@@ -193,5 +290,14 @@ impl Node {
 
             verts: Vec::new(),
         };
+    }
+}
+
+fn add_as_set<T>(vec: &mut Vec<T>, val: T)
+where
+    T: PartialEq,
+{
+    if vec.contains(&val) == false {
+        vec.push(val);
     }
 }
