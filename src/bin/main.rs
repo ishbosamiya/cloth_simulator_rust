@@ -77,6 +77,8 @@ fn main() {
 
     let mut last_cursor = window.borrow().get_cursor_pos();
 
+    let mut fps = FPS::new();
+
     while !window.borrow().should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
@@ -125,6 +127,8 @@ fn main() {
         mesh.draw().unwrap();
 
         window.borrow_mut().swap_buffers();
+
+        fps.update_and_print(20);
     }
 }
 
@@ -168,4 +172,33 @@ fn handle_window_event(
         }
     }
     *last_cursor = cursor;
+}
+
+struct FPS {
+    previous_time: std::time::Instant,
+    frames: usize,
+}
+
+impl FPS {
+    fn new() -> FPS {
+        return FPS {
+            previous_time: std::time::Instant::now(),
+            frames: 0,
+        };
+    }
+
+    /// Update and print every nth frame
+    fn update_and_print(&mut self, n: usize) {
+        self.frames += 1;
+
+        if self.frames % n == 0 {
+            let current = std::time::Instant::now();
+            let fps = self.frames as f64 / (current - self.previous_time).as_secs_f64();
+
+            println!("fps: {:.2}", fps);
+
+            self.previous_time = current;
+            self.frames = 0;
+        }
+    }
 }
