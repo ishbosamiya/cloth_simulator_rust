@@ -13,5 +13,11 @@ nalgebra-glm = "0.10.0"
 rand = "0.8.2"
 itertools = "0.10.0"
 generational-arena = "0.2.8"
+criterion = "0.3.4"
+
+[[bench]]
+name = "mesh_benchmark"
+harness = false
+
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"
