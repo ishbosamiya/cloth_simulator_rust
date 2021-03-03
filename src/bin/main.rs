@@ -37,6 +37,8 @@ fn main() {
 
     gl::load_with(|symbol| window.borrow_mut().get_proc_address(symbol));
 
+    glfw.set_swap_interval(glfw::SwapInterval::None);
+
     unsafe {
         gl::Disable(gl::CULL_FACE);
         gl::Enable(gl::DEPTH_TEST);
@@ -124,6 +126,7 @@ fn main() {
         // default_shader.use_shader();
         directional_light_shader.use_shader();
         // face_orientation_shader.use_shader();
+        mesh.generate_gl_mesh(false);
         mesh.draw().unwrap();
 
         window.borrow_mut().swap_buffers();
