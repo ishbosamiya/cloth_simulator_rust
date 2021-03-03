@@ -10,12 +10,10 @@ use std::rc::Rc;
 
 use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::drawable::Drawable;
-use cloth_simulator_rust::eigen;
 use cloth_simulator_rust::mesh::Mesh;
 use cloth_simulator_rust::shader::Shader;
 
 fn main() {
-    eigen::print_from_cpp(std::ffi::CString::new("hello world!").unwrap());
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
