@@ -1,5 +1,6 @@
 use cloth_simulator_rust::mesh::Mesh;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use rand::Rng;
 
 pub fn mesh_generate_gl_mesh_benchmark(c: &mut Criterion) {
     let glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -28,5 +29,29 @@ pub fn mesh_generate_gl_mesh_benchmark(c: &mut Criterion) {
     );
 }
 
-criterion_group!(benches, mesh_generate_gl_mesh_benchmark);
+pub fn mesh_get_adjacent_vert_indices_benchmark(c: &mut Criterion) {
+    let mut mesh = Mesh::new();
+    mesh.read(&std::path::Path::new("models/monkey_subd_03.obj"))
+        .unwrap();
+
+    let mut rgn = rand::thread_rng();
+
+    c.bench_function("mesh_get_adjacent_vert_indices", |b| {
+        b.iter(|| {
+            mesh.get_adjacent_vert_indices(black_box(
+                mesh.get_faces()
+                    .get_unknown_gen(rgn.gen_range(0..mesh.get_faces().len()))
+                    .unwrap()
+                    .0,
+            ))
+            .unwrap();
+        })
+    });
+}
+
+criterion_group!(
+    benches,
+    mesh_generate_gl_mesh_benchmark,
+    mesh_get_adjacent_vert_indices_benchmark
+);
 criterion_main!(benches);

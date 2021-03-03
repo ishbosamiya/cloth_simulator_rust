@@ -130,6 +130,10 @@ impl Mesh {
         };
     }
 
+    pub fn get_faces(&self) -> &Arena<Face> {
+        return &self.faces;
+    }
+
     /// Adds an empty Node and gives back mutable reference to it
     ///
     /// Use with caution
@@ -183,7 +187,7 @@ impl Mesh {
     /// Gives set of vert indices that are adjacent to the face
     pub fn get_adjacent_vert_indices(&self, face: &Face) -> Option<AdjacentVerts> {
         assert!(self.edges.len() > 2);
-        let mut adjacent_verts = Vec::new();
+        let mut adjacent_verts = Vec::with_capacity(face.edges.len());
 
         for edge_index in &face.edges {
             let edge = self.edges.get(edge_index.0)?;
@@ -337,6 +341,7 @@ impl Mesh {
     }
 
     pub fn generate_gl_mesh(&mut self, use_face_normal: bool) {
+        #[inline]
         fn store_in_gl_vert(
             gl_verts: &mut Vec<GLVert>,
             vert: &Vert,
@@ -382,8 +387,8 @@ impl Mesh {
             }
         }
 
-        let mut gl_verts: Vec<GLVert> = Vec::new();
-        let mut gl_indices: Vec<gl::types::GLuint> = Vec::new();
+        let mut gl_verts: Vec<GLVert> = Vec::with_capacity(self.verts.len());
+        let mut gl_indices: Vec<gl::types::GLuint> = Vec::with_capacity(self.faces.len() * 3);
 
         for (_, face) in &self.faces {
             let verts = self.get_adjacent_vert_indices(face).unwrap();
