@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod drawable;
+pub mod eigen;
 pub mod gl_mesh;
 pub mod mesh;
 pub mod meshreader;
