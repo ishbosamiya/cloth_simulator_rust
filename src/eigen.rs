@@ -45,6 +45,38 @@ impl MatX {
             })
         }
     }
+
+    pub fn resize(&mut self, x: Index, y: Index) {
+        unsafe {
+            cpp!([self as "MatX*", x as "Index", y as "Index"] {
+                return self->resize(x, y);
+            })
+        }
+    }
+
+    pub fn rows(&self) -> Index {
+        unsafe {
+            cpp!([self as "const MatX*"] -> Index as "Index" {
+                return self->rows();
+            })
+        }
+    }
+
+    pub fn cols(&self) -> Index {
+        unsafe {
+            cpp!([self as "const MatX*"] -> Index as "Index" {
+                return self->cols();
+            })
+        }
+    }
+
+    pub fn size(&self) -> Index {
+        unsafe {
+            cpp!([self as "const MatX*"] -> Index as "Index" {
+                return self->size();
+            })
+        }
+    }
 }
 
 #[cfg(test)]
@@ -56,5 +88,17 @@ mod tests {
         let mut mat = MatX::new_with_size(1, 1);
         mat.set(0, 0, 5.0);
         assert_eq!(mat.get(0, 0), 5.0);
+    }
+
+    #[test]
+    fn eigenmatx_resize() {
+        let mut mat = MatX::new_with_size(1, 1);
+        assert_eq!(mat.rows(), 1);
+        assert_eq!(mat.cols(), 1);
+        assert_eq!(mat.size(), 1);
+        mat.resize(3, 2);
+        assert_eq!(mat.rows(), 3);
+        assert_eq!(mat.cols(), 2);
+        assert_eq!(mat.size(), 6);
     }
 }
