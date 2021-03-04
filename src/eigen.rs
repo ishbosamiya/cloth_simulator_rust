@@ -31,6 +31,14 @@ impl MatX {
         }
     }
 
+    pub fn new_random(x: Index, y: Index) -> Self {
+        unsafe {
+            cpp!([x as "Index", y as "Index"] -> MatX as "MatX" {
+                return MatX::Random(x, y);
+            })
+        }
+    }
+
     pub fn set(&mut self, x: Index, y: Index, value: Scalar) {
         unsafe {
             cpp!([self as "MatX*", x as "Index", y as "Index", value as "Scalar"] {
