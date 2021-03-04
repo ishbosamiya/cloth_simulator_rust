@@ -102,6 +102,38 @@ impl MatX {
             return std::slice::from_raw_parts_mut(self.data_raw_mut(), self.size());
         }
     }
+
+    pub fn transpose(&self) -> MatX {
+        unsafe {
+            cpp!([self as "const MatX*"] -> MatX as "MatX"{
+                return self->transpose();
+            })
+        }
+    }
+
+    pub fn transpose_in_place(&mut self) {
+        unsafe {
+            cpp!([self as "MatX*"]{
+                self->transposeInPlace();
+            })
+        }
+    }
+
+    pub fn adjoint(&self) -> MatX {
+        unsafe {
+            cpp!([self as "const MatX*"] -> MatX as "MatX"{
+                return self->adjoint();
+            })
+        }
+    }
+
+    pub fn adjoint_in_place(&mut self) {
+        unsafe {
+            cpp!([self as "MatX*"]{
+                self->adjointInPlace();
+            })
+        }
+    }
 }
 
 impl ops::Neg for &MatX {
@@ -409,5 +441,27 @@ mod tests {
         mat1.set(0, 1, 3.0);
         mat1 /= 5.0;
         assert_eq!(mat1.data(), [2.0 / 5.0, 3.0 / 5.0]);
+    }
+
+    #[test]
+    fn eigenmatx_transpose() {
+        // generate new matrix
+        {
+            let mut mat1 = MatX::new_with_size(1, 2);
+            mat1.data_mut().swap_with_slice(&mut [1.0, 2.0]);
+            let mat2 = mat1.transpose();
+            assert_eq!(mat2.rows(), 2);
+            assert_eq!(mat2.cols(), 1);
+            assert_eq!(mat2.data(), [1.0, 2.0]);
+        }
+        // inplace
+        {
+            let mut mat1 = MatX::new_with_size(1, 2);
+            mat1.data_mut().swap_with_slice(&mut [1.0, 2.0]);
+            mat1.transpose_in_place();
+            assert_eq!(mat1.rows(), 2);
+            assert_eq!(mat1.cols(), 1);
+            assert_eq!(mat1.data(), [1.0, 2.0]);
+        }
     }
 }
