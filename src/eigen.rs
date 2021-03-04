@@ -80,6 +80,18 @@ impl MatX {
     }
 }
 
+impl ops::Neg for &MatX {
+    type Output = MatX;
+
+    fn neg(self) -> Self::Output {
+        unsafe {
+            cpp!([self as "const MatX*"] -> MatX as "MatX" {
+                return -(*self);
+            })
+        }
+    }
+}
+
 impl ops::Add<&MatX> for &MatX {
     type Output = MatX;
 
@@ -87,6 +99,18 @@ impl ops::Add<&MatX> for &MatX {
         unsafe {
             cpp!([self as "const MatX*", rhs as "const MatX*"] -> MatX as "MatX" {
                 return *self + *rhs;
+            })
+        }
+    }
+}
+
+impl ops::Sub<&MatX> for &MatX {
+    type Output = MatX;
+
+    fn sub(self, rhs: &MatX) -> MatX {
+        unsafe {
+            cpp!([self as "const MatX*", rhs as "const MatX*"] -> MatX as "MatX" {
+                return *self - *rhs;
             })
         }
     }
@@ -124,5 +148,27 @@ mod tests {
         let mat3 = &mat1 + &mat2;
         assert_eq!(mat3.size(), 1);
         assert_eq!(mat3.get(0, 0), 5.0);
+    }
+
+    #[test]
+    fn eigenmatx_neg() {
+        let mut mat1 = MatX::new_with_size(2, 1);
+        mat1.set(0, 0, 2.0);
+        mat1.set(1, 0, -3.0);
+        let mat2 = -&mat1;
+        assert_eq!(mat2.size(), 2);
+        assert_eq!(mat2.get(0, 0), -2.0);
+        assert_eq!(mat2.get(1, 0), 3.0);
+    }
+
+    #[test]
+    fn eigenmatx_sub() {
+        let mut mat1 = MatX::new_with_size(1, 1);
+        let mut mat2 = MatX::new_with_size(1, 1);
+        mat1.set(0, 0, 2.0);
+        mat2.set(0, 0, 3.0);
+        let mat3 = &mat1 - &mat2;
+        assert_eq!(mat3.size(), 1);
+        assert_eq!(mat3.get(0, 0), -1.0);
     }
 }
