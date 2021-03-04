@@ -1,12 +1,13 @@
 use cpp::cpp;
 use cpp::cpp_class;
+use std::ops;
 
 cpp! {{
     #include <Eigen/Core>
     #include <Eigen/Dense>
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatX;
     typedef double Scalar;
-    typedef size_t Index;
+    typedef Eigen::Index Index;
 }}
 
 use f64 as Scalar;
@@ -79,6 +80,18 @@ impl MatX {
     }
 }
 
+impl ops::Add<&MatX> for &MatX {
+    type Output = MatX;
+
+    fn add(self, rhs: &MatX) -> MatX {
+        unsafe {
+            cpp!([self as "const MatX*", rhs as "const MatX*"] -> MatX as "MatX" {
+                return *self + *rhs;
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,5 +113,16 @@ mod tests {
         assert_eq!(mat.rows(), 3);
         assert_eq!(mat.cols(), 2);
         assert_eq!(mat.size(), 6);
+    }
+
+    #[test]
+    fn eigenmatx_add() {
+        let mut mat1 = MatX::new_with_size(1, 1);
+        let mut mat2 = MatX::new_with_size(1, 1);
+        mat1.set(0, 0, 2.0);
+        mat2.set(0, 0, 3.0);
+        let mat3 = &mat1 + &mat2;
+        assert_eq!(mat3.size(), 1);
+        assert_eq!(mat3.get(0, 0), 5.0);
     }
 }
