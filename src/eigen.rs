@@ -85,9 +85,21 @@ impl MatX {
         })
     }
 
+    unsafe fn data_raw_mut(&mut self) -> *mut Scalar {
+        cpp!([self as "MatX*"] -> *mut Scalar as "Scalar*" {
+            return self->data();
+        })
+    }
+
     pub fn data(&self) -> &[Scalar] {
         unsafe {
             return std::slice::from_raw_parts(self.data_raw(), self.size());
+        }
+    }
+
+    pub fn data_mut(&mut self) -> &mut [Scalar] {
+        unsafe {
+            return std::slice::from_raw_parts_mut(self.data_raw_mut(), self.size());
         }
     }
 }
@@ -253,6 +265,32 @@ mod tests {
         assert_eq!(mat.get(0, 1), 2.0);
         assert_eq!(mat.get(1, 0), 3.0);
         assert_eq!(mat.get(1, 1), 4.0);
+    }
+
+    #[test]
+    fn eigenmatx_data_mut() {
+        // Due to column major storage, the sequence in memory is
+        // 1, 3, 2, 4 compared to 1, 2, 3, 4 if it was row major
+        {
+            let mut mat = MatX::new_with_size(2, 2);
+            let data = mat.data_mut();
+            data[0] = 1.0;
+            data[1] = 3.0;
+            data[2] = 2.0;
+            data[3] = 4.0;
+            assert_eq!(mat.get(0, 0), 1.0);
+            assert_eq!(mat.get(0, 1), 2.0);
+            assert_eq!(mat.get(1, 0), 3.0);
+            assert_eq!(mat.get(1, 1), 4.0);
+        }
+        {
+            let mut mat = MatX::new_with_size(2, 2);
+            mat.data_mut().swap_with_slice(&mut [1.0, 3.0, 2.0, 4.0]);
+            assert_eq!(mat.get(0, 0), 1.0);
+            assert_eq!(mat.get(0, 1), 2.0);
+            assert_eq!(mat.get(1, 0), 3.0);
+            assert_eq!(mat.get(1, 1), 4.0);
+        }
     }
 
     #[test]
