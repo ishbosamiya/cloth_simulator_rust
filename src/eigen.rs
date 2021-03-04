@@ -5,8 +5,9 @@ use std::ops;
 cpp! {{
     #include <Eigen/Core>
     #include <Eigen/Dense>
-    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatX;
     typedef double Scalar;
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatX;
+    typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VecX;
     typedef Eigen::Index Index;
 }}
 
@@ -268,6 +269,97 @@ impl ops::DivAssign<Scalar> for MatX {
     }
 }
 
+cpp_class!(pub unsafe struct VecX as "VecX");
+impl VecX {
+    pub fn new() -> Self {
+        unsafe {
+            cpp!([] -> VecX as "VecX" {
+                return VecX();
+            })
+        }
+    }
+
+    pub fn new_with_size(size: Index) -> Self {
+        unsafe {
+            cpp!([size as "Index"] -> VecX as "VecX" {
+                return VecX(size);
+            })
+        }
+    }
+
+    pub fn new_random(size: Index) -> Self {
+        unsafe {
+            cpp!([size as "Index"] -> VecX as "VecX" {
+                return VecX::Random(size);
+            })
+        }
+    }
+
+    pub fn set(&mut self, x: Index, value: Scalar) {
+        unsafe {
+            cpp!([self as "VecX*", x as "Index", value as "Scalar"] {
+                (*self)(x) = value;
+            })
+        }
+    }
+
+    pub fn get(&self, x: Index) -> Scalar {
+        unsafe {
+            cpp!([self as "const VecX*", x as "Index"] -> Scalar as "Scalar" {
+                return (*self)(x);
+            })
+        }
+    }
+
+    pub fn resize(&mut self, x: Index) {
+        unsafe {
+            cpp!([self as "VecX*", x as "Index"] {
+                return self->resize(x);
+            })
+        }
+    }
+
+    pub fn size(&self) -> Index {
+        unsafe {
+            cpp!([self as "const VecX*"] -> Index as "Index" {
+                return self->size();
+            })
+        }
+    }
+
+    unsafe fn data_raw(&self) -> *const Scalar {
+        cpp!([self as "const VecX*"] -> *const Scalar as "const Scalar*" {
+            return self->data();
+        })
+    }
+
+    unsafe fn data_raw_mut(&mut self) -> *mut Scalar {
+        cpp!([self as "VecX*"] -> *mut Scalar as "Scalar*" {
+            return self->data();
+        })
+    }
+
+    pub fn data(&self) -> &[Scalar] {
+        unsafe {
+            return std::slice::from_raw_parts(self.data_raw(), self.size());
+        }
+    }
+
+    pub fn data_mut(&mut self) -> &mut [Scalar] {
+        unsafe {
+            return std::slice::from_raw_parts_mut(self.data_raw_mut(), self.size());
+        }
+    }
+
+    pub fn transpose(&self) -> MatX {
+        unsafe {
+            cpp!([self as "const VecX*"] -> MatX as "MatX"{
+                return self->transpose();
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -471,5 +563,54 @@ mod tests {
             assert_eq!(mat1.cols(), 1);
             assert_eq!(mat1.data(), [1.0, 2.0]);
         }
+    }
+
+    #[test]
+    fn eigenvecx_set_get() {
+        let mut vec = VecX::new_with_size(3);
+        vec.set(0, 1.0);
+        vec.set(1, 2.0);
+        vec.set(2, 3.0);
+        assert_eq!(vec.get(0), 1.0);
+        assert_eq!(vec.get(1), 2.0);
+        assert_eq!(vec.get(2), 3.0);
+    }
+
+    #[test]
+    fn eigenvecx_resize() {
+        let mut vec = VecX::new();
+        assert_eq!(vec.size(), 0);
+        vec.resize(2);
+        assert_eq!(vec.size(), 2);
+    }
+
+    #[test]
+    fn eigenvecx_data() {
+        let mut vec = VecX::new_with_size(3);
+        vec.set(0, 1.0);
+        vec.set(1, 2.0);
+        vec.set(2, 3.0);
+        assert_eq!(vec.data(), [1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn eigenvecx_data_mut() {
+        let mut vec = VecX::new_with_size(3);
+        vec.data_mut().swap_with_slice(&mut [1.0, 2.0, 3.0]);
+        assert_eq!(vec.get(0), 1.0);
+        assert_eq!(vec.get(1), 2.0);
+        assert_eq!(vec.get(2), 3.0);
+    }
+
+    #[test]
+    fn eigenvecx_transpose() {
+        let mut vec = VecX::new_with_size(3);
+        vec.data_mut().swap_with_slice(&mut [1.0, 2.0, 3.0]);
+        assert_eq!(vec.size(), 3);
+        let vec_t = vec.transpose();
+        assert_eq!(vec_t.size(), 3);
+        assert_eq!(vec_t.rows(), 1);
+        assert_eq!(vec_t.cols(), 3);
+        assert_eq!(vec_t.data(), [1.0, 2.0, 3.0]);
     }
 }
