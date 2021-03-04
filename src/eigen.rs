@@ -6,10 +6,12 @@ cpp! {{
     #include <Eigen/Core>
     #include <Eigen/Dense>
     #include <Eigen/Sparse>
+    #include <iterator>
     typedef double Scalar;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatX;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VecX;
     typedef Eigen::SparseMatrix<Scalar> SparseMatrix;
+    typedef Eigen::Triplet<Scalar> Triplet;
     typedef Eigen::Index Index;
 }}
 
@@ -526,6 +528,17 @@ impl ops::DivAssign<Scalar> for VecX {
     }
 }
 
+cpp_class!(pub unsafe struct Triplet as "Triplet");
+impl Triplet {
+    pub fn new(x: Index, y: Index, value: Scalar) -> Self {
+        unsafe {
+            cpp!([x as "Index", y as "Index", value as "Scalar"] -> Triplet as "Triplet" {
+                return Triplet(x, y, value);
+            })
+        }
+    }
+}
+
 cpp_class!(pub unsafe struct SparseMatrix as "SparseMatrix");
 impl SparseMatrix {
     pub fn new() -> Self {
@@ -624,7 +637,15 @@ impl SparseMatrix {
         }
     }
 
-    // TODO(ish): setFromTriplets
+    pub fn set_from_triplets(&mut self, triplets: &[Triplet]) {
+        let triplets_len = triplets.len();
+        let triplets_ptr = triplets.as_ptr();
+        unsafe {
+            cpp!([self as "SparseMatrix*", triplets_ptr as "const Triplet*", triplets_len as "Index"]{
+                return self->setFromTriplets(triplets_ptr, triplets_ptr + triplets_len);
+            })
+        }
+    }
 }
 
 impl ops::Neg for &SparseMatrix {
