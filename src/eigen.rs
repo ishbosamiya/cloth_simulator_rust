@@ -78,6 +78,18 @@ impl MatX {
             })
         }
     }
+
+    unsafe fn data_raw(&self) -> *const Scalar {
+        cpp!([self as "const MatX*"] -> *const Scalar as "const Scalar*" {
+            return self->data();
+        })
+    }
+
+    pub fn data(&self) -> &[Scalar] {
+        unsafe {
+            return std::slice::from_raw_parts(self.data_raw(), self.size());
+        }
+    }
 }
 
 impl ops::Neg for &MatX {
@@ -136,6 +148,74 @@ impl ops::SubAssign<&MatX> for MatX {
     }
 }
 
+impl ops::Mul<&MatX> for &MatX {
+    type Output = MatX;
+
+    fn mul(self, rhs: &MatX) -> MatX {
+        unsafe {
+            cpp!([self as "const MatX*", rhs as "const MatX*"] -> MatX as "MatX" {
+                return *self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<Scalar> for &MatX {
+    type Output = MatX;
+
+    fn mul(self, rhs: Scalar) -> MatX {
+        unsafe {
+            cpp!([self as "const MatX*", rhs as "Scalar"] -> MatX as "MatX" {
+                return *self * rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&MatX> for Scalar {
+    type Output = MatX;
+
+    fn mul(self, rhs: &MatX) -> MatX {
+        unsafe {
+            cpp!([self as "Scalar", rhs as "const MatX*"] -> MatX as "MatX" {
+                return self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::MulAssign<Scalar> for MatX {
+    fn mul_assign(&mut self, rhs: Scalar) {
+        unsafe {
+            cpp!([self as "MatX*", rhs as "Scalar"] {
+                *self *= rhs;
+            })
+        }
+    }
+}
+
+impl ops::Div<Scalar> for &MatX {
+    type Output = MatX;
+
+    fn div(self, rhs: Scalar) -> MatX {
+        unsafe {
+            cpp!([self as "const MatX*", rhs as "Scalar"] -> MatX as "MatX" {
+                return *self / rhs;
+            })
+        }
+    }
+}
+
+impl ops::DivAssign<Scalar> for MatX {
+    fn div_assign(&mut self, rhs: Scalar) {
+        unsafe {
+            cpp!([self as "MatX*", rhs as "Scalar"] {
+                *self /= rhs;
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,6 +237,22 @@ mod tests {
         assert_eq!(mat.rows(), 3);
         assert_eq!(mat.cols(), 2);
         assert_eq!(mat.size(), 6);
+    }
+
+    #[test]
+    fn eigenmatx_data() {
+        let mut mat = MatX::new_with_size(2, 2);
+        mat.set(0, 0, 1.0);
+        mat.set(0, 1, 2.0);
+        mat.set(1, 0, 3.0);
+        mat.set(1, 1, 4.0);
+        // Due to column major storage, the sequence in memory is
+        // 1, 3, 2, 4 compared to 1, 2, 3, 4 if it was row major
+        assert_eq!(mat.data(), [1.0, 3.0, 2.0, 4.0]);
+        assert_eq!(mat.get(0, 0), 1.0);
+        assert_eq!(mat.get(0, 1), 2.0);
+        assert_eq!(mat.get(1, 0), 3.0);
+        assert_eq!(mat.get(1, 1), 4.0);
     }
 
     #[test]
@@ -212,5 +308,68 @@ mod tests {
         mat1 -= &mat2;
         assert_eq!(mat1.size(), 1);
         assert_eq!(mat1.get(0, 0), -1.0);
+    }
+
+    #[test]
+    fn eigenmatx_mul() {
+        // MatX*MatX
+        {
+            let mut mat1 = MatX::new_with_size(1, 2);
+            mat1.set(0, 0, 2.0);
+            mat1.set(0, 1, 3.0);
+            let mut mat2 = MatX::new_with_size(2, 2);
+            mat2.set(0, 0, 1.0);
+            mat2.set(0, 1, 2.0);
+            mat2.set(1, 0, 3.0);
+            mat2.set(1, 1, 4.0);
+            let mat3 = &mat1 * &mat2;
+            assert_eq!(mat3.data(), [11.0, 16.0]);
+        }
+
+        // MatX*Scalar
+        {
+            let mut mat1 = MatX::new_with_size(1, 2);
+            mat1.set(0, 0, 2.0);
+            mat1.set(0, 1, 3.0);
+            let scalar = 5.0;
+            assert_eq!((&mat1 * scalar).data(), [10.0, 15.0]);
+        }
+
+        // Scalar*MatX
+        {
+            let mut mat1 = MatX::new_with_size(1, 2);
+            mat1.set(0, 0, 2.0);
+            mat1.set(0, 1, 3.0);
+            let scalar = 5.0;
+            assert_eq!((scalar * &mat1).data(), [10.0, 15.0]);
+        }
+    }
+
+    #[test]
+    fn eigenmatx_mulassign() {
+        let mut mat1 = MatX::new_with_size(1, 2);
+        mat1.set(0, 0, 2.0);
+        mat1.set(0, 1, 3.0);
+        mat1 *= 5.0;
+        assert_eq!(mat1.data(), [10.0, 15.0]);
+    }
+
+    #[test]
+    fn eigenmatx_div() {
+        // MatX/Scalar
+        let mut mat1 = MatX::new_with_size(1, 2);
+        mat1.set(0, 0, 2.0);
+        mat1.set(0, 1, 3.0);
+        let scalar = 5.0;
+        assert_eq!((&mat1 / scalar).data(), [2.0 / 5.0, 3.0 / 5.0]);
+    }
+
+    #[test]
+    fn eigenmatx_divassign() {
+        let mut mat1 = MatX::new_with_size(1, 2);
+        mat1.set(0, 0, 2.0);
+        mat1.set(0, 1, 3.0);
+        mat1 /= 5.0;
+        assert_eq!(mat1.data(), [2.0 / 5.0, 3.0 / 5.0]);
     }
 }
