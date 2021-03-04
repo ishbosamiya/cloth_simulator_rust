@@ -104,6 +104,16 @@ impl ops::Add<&MatX> for &MatX {
     }
 }
 
+impl ops::AddAssign<&MatX> for MatX {
+    fn add_assign(&mut self, other: &MatX) {
+        unsafe {
+            cpp!([self as "MatX*", other as "const MatX*"] {
+                *self += *other;
+            })
+        }
+    }
+}
+
 impl ops::Sub<&MatX> for &MatX {
     type Output = MatX;
 
@@ -111,6 +121,16 @@ impl ops::Sub<&MatX> for &MatX {
         unsafe {
             cpp!([self as "const MatX*", rhs as "const MatX*"] -> MatX as "MatX" {
                 return *self - *rhs;
+            })
+        }
+    }
+}
+
+impl ops::SubAssign<&MatX> for MatX {
+    fn sub_assign(&mut self, other: &MatX) {
+        unsafe {
+            cpp!([self as "MatX*", other as "const MatX*"] {
+                *self -= *other;
             })
         }
     }
@@ -151,6 +171,17 @@ mod tests {
     }
 
     #[test]
+    fn eigenmatx_addassign() {
+        let mut mat1 = MatX::new_with_size(1, 1);
+        let mut mat2 = MatX::new_with_size(1, 1);
+        mat1.set(0, 0, 2.0);
+        mat2.set(0, 0, 3.0);
+        mat1 += &mat2;
+        assert_eq!(mat1.size(), 1);
+        assert_eq!(mat1.get(0, 0), 5.0);
+    }
+
+    #[test]
     fn eigenmatx_neg() {
         let mut mat1 = MatX::new_with_size(2, 1);
         mat1.set(0, 0, 2.0);
@@ -170,5 +201,16 @@ mod tests {
         let mat3 = &mat1 - &mat2;
         assert_eq!(mat3.size(), 1);
         assert_eq!(mat3.get(0, 0), -1.0);
+    }
+
+    #[test]
+    fn eigenmatx_subassign() {
+        let mut mat1 = MatX::new_with_size(1, 1);
+        let mut mat2 = MatX::new_with_size(1, 1);
+        mat1.set(0, 0, 2.0);
+        mat2.set(0, 0, 3.0);
+        mat1 -= &mat2;
+        assert_eq!(mat1.size(), 1);
+        assert_eq!(mat1.get(0, 0), -1.0);
     }
 }
