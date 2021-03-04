@@ -213,6 +213,30 @@ impl ops::Mul<&MatX> for &MatX {
     }
 }
 
+impl ops::Mul<&VecX> for &MatX {
+    type Output = VecX;
+
+    fn mul(self, rhs: &VecX) -> VecX {
+        unsafe {
+            cpp!([self as "const MatX*", rhs as "const VecX*"] -> VecX as "VecX" {
+                return *self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&MatX> for &VecX {
+    type Output = MatX;
+
+    fn mul(self, rhs: &MatX) -> MatX {
+        unsafe {
+            cpp!([self as "const VecX*", rhs as "const MatX*"] -> MatX as "MatX" {
+                return *self * *rhs;
+            })
+        }
+    }
+}
+
 impl ops::Mul<Scalar> for &MatX {
     type Output = MatX;
 
@@ -355,6 +379,34 @@ impl VecX {
         unsafe {
             cpp!([self as "const VecX*"] -> MatX as "MatX"{
                 return self->transpose();
+            })
+        }
+    }
+
+    pub fn dot(&self, other: &VecX) -> Scalar {
+        unsafe {
+            cpp!([self as "const VecX*", other as "const VecX*"] -> Scalar as "Scalar" {
+                return self->dot(*other);
+            })
+        }
+    }
+
+    pub fn cross(&self, other: &VecX) -> VecX {
+        assert_eq!(self.size(), 3);
+        assert_eq!(other.size(), 3);
+        unsafe {
+            cpp!([self as "const VecX*", other as "const VecX*"] -> VecX as "VecX" {
+                VecX res(3);
+                auto vec = Eigen::Matrix<Scalar, 3, 1>((*self)[0],
+                                                       (*self)[1],
+                                                       (*self)[2]).cross(
+                           Eigen::Matrix<Scalar, 3, 1>((*other)[0],
+                                                       (*other)[1],
+                                                       (*other)[2]));
+                res(0) = vec(0);
+                res(1) = vec(1);
+                res(2) = vec(2);
+                return res;
             })
         }
     }
@@ -516,6 +568,22 @@ mod tests {
     }
 
     #[test]
+    fn eigenmatx_vecx_mul() {
+        let mut mat1 = MatX::new_with_size(2, 3);
+        mat1.data_mut()
+            .swap_with_slice(&mut [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let mut vec1 = VecX::new_with_size(3);
+        vec1.data_mut().swap_with_slice(&mut [1.0, 2.0, 3.0]);
+        assert_eq!((&mat1 * &vec1).data(), [22.0, 28.0]);
+
+        let mut mat2 = MatX::new_with_size(1, 3);
+        mat2.data_mut().swap_with_slice(&mut [1.0, 2.0, 3.0]);
+        let mut vec2 = VecX::new_with_size(2);
+        vec2.data_mut().swap_with_slice(&mut [1.0, 2.0]);
+        assert_eq!((&vec2 * &mat2).data(), [1.0, 2.0, 2.0, 4.0, 3.0, 6.0]);
+    }
+
+    #[test]
     fn eigenmatx_mulassign() {
         let mut mat1 = MatX::new_with_size(1, 2);
         mat1.set(0, 0, 2.0);
@@ -612,5 +680,23 @@ mod tests {
         assert_eq!(vec_t.rows(), 1);
         assert_eq!(vec_t.cols(), 3);
         assert_eq!(vec_t.data(), [1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn eigenvecx_dot() {
+        let mut vec1 = VecX::new_with_size(3);
+        vec1.data_mut().swap_with_slice(&mut [1.0, 2.0, 3.0]);
+        let mut vec2 = VecX::new_with_size(3);
+        vec2.data_mut().swap_with_slice(&mut [3.0, 2.0, 1.0]);
+        assert_eq!(vec1.dot(&vec2), 10.0);
+    }
+
+    #[test]
+    fn eigenvecx_cross() {
+        let mut vec1 = VecX::new_with_size(3);
+        vec1.data_mut().swap_with_slice(&mut [1.0, 2.0, 3.0]);
+        let mut vec2 = VecX::new_with_size(3);
+        vec2.data_mut().swap_with_slice(&mut [3.0, 2.0, 1.0]);
+        assert_eq!(vec1.cross(&vec2).data(), [-4.0, 8.0, -4.0]);
     }
 }
