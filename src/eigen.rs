@@ -412,6 +412,118 @@ impl VecX {
     }
 }
 
+impl ops::Neg for &VecX {
+    type Output = VecX;
+
+    fn neg(self) -> Self::Output {
+        unsafe {
+            cpp!([self as "const VecX*"] -> VecX as "VecX" {
+                return -(*self);
+            })
+        }
+    }
+}
+
+impl ops::Add<&VecX> for &VecX {
+    type Output = VecX;
+
+    fn add(self, rhs: &VecX) -> VecX {
+        unsafe {
+            cpp!([self as "const VecX*", rhs as "const VecX*"] -> VecX as "VecX" {
+                return *self + *rhs;
+            })
+        }
+    }
+}
+
+impl ops::AddAssign<&VecX> for VecX {
+    fn add_assign(&mut self, other: &VecX) {
+        unsafe {
+            cpp!([self as "VecX*", other as "const VecX*"] {
+                *self += *other;
+            })
+        }
+    }
+}
+
+impl ops::Sub<&VecX> for &VecX {
+    type Output = VecX;
+
+    fn sub(self, rhs: &VecX) -> VecX {
+        unsafe {
+            cpp!([self as "const VecX*", rhs as "const VecX*"] -> VecX as "VecX" {
+                return *self - *rhs;
+            })
+        }
+    }
+}
+
+impl ops::SubAssign<&VecX> for VecX {
+    fn sub_assign(&mut self, other: &VecX) {
+        unsafe {
+            cpp!([self as "VecX*", other as "const VecX*"] {
+                *self -= *other;
+            })
+        }
+    }
+}
+
+impl ops::Mul<Scalar> for &VecX {
+    type Output = VecX;
+
+    fn mul(self, rhs: Scalar) -> VecX {
+        unsafe {
+            cpp!([self as "const VecX*", rhs as "Scalar"] -> VecX as "VecX" {
+                return *self * rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&VecX> for Scalar {
+    type Output = VecX;
+
+    fn mul(self, rhs: &VecX) -> VecX {
+        unsafe {
+            cpp!([self as "Scalar", rhs as "const VecX*"] -> VecX as "VecX" {
+                return self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::MulAssign<Scalar> for VecX {
+    fn mul_assign(&mut self, rhs: Scalar) {
+        unsafe {
+            cpp!([self as "VecX*", rhs as "Scalar"] {
+                *self *= rhs;
+            })
+        }
+    }
+}
+
+impl ops::Div<Scalar> for &VecX {
+    type Output = VecX;
+
+    fn div(self, rhs: Scalar) -> VecX {
+        unsafe {
+            cpp!([self as "const VecX*", rhs as "Scalar"] -> VecX as "VecX" {
+                return *self / rhs;
+            })
+        }
+    }
+}
+
+impl ops::DivAssign<Scalar> for VecX {
+    fn div_assign(&mut self, rhs: Scalar) {
+        unsafe {
+            cpp!([self as "VecX*", rhs as "Scalar"] {
+                *self /= rhs;
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -698,5 +810,109 @@ mod tests {
         let mut vec2 = VecX::new_with_size(3);
         vec2.data_mut().swap_with_slice(&mut [3.0, 2.0, 1.0]);
         assert_eq!(vec1.cross(&vec2).data(), [-4.0, 8.0, -4.0]);
+    }
+
+    #[test]
+    fn eigenvecx_add() {
+        let mut vec1 = VecX::new_with_size(1);
+        let mut vec2 = VecX::new_with_size(1);
+        vec1.set(0, 2.0);
+        vec2.set(0, 3.0);
+        let vec3 = &vec1 + &vec2;
+        assert_eq!(vec3.size(), 1);
+        assert_eq!(vec3.get(0), 5.0);
+    }
+
+    #[test]
+    fn eigenvecx_addassign() {
+        let mut vec1 = VecX::new_with_size(1);
+        let mut vec2 = VecX::new_with_size(1);
+        vec1.set(0, 2.0);
+        vec2.set(0, 3.0);
+        vec1 += &vec2;
+        assert_eq!(vec1.size(), 1);
+        assert_eq!(vec1.get(0), 5.0);
+    }
+
+    #[test]
+    fn eigenvecx_neg() {
+        let mut vec1 = VecX::new_with_size(2);
+        vec1.set(0, 2.0);
+        vec1.set(1, -3.0);
+        let vec2 = -&vec1;
+        assert_eq!(vec2.size(), 2);
+        assert_eq!(vec2.get(0), -2.0);
+        assert_eq!(vec2.get(1), 3.0);
+    }
+
+    #[test]
+    fn eigenvecx_sub() {
+        let mut vec1 = VecX::new_with_size(1);
+        let mut vec2 = VecX::new_with_size(1);
+        vec1.set(0, 2.0);
+        vec2.set(0, 3.0);
+        let vec3 = &vec1 - &vec2;
+        assert_eq!(vec3.size(), 1);
+        assert_eq!(vec3.get(0), -1.0);
+    }
+
+    #[test]
+    fn eigenvecx_subassign() {
+        let mut vec1 = VecX::new_with_size(1);
+        let mut vec2 = VecX::new_with_size(1);
+        vec1.set(0, 2.0);
+        vec2.set(0, 3.0);
+        vec1 -= &vec2;
+        assert_eq!(vec1.size(), 1);
+        assert_eq!(vec1.get(0), -1.0);
+    }
+
+    #[test]
+    fn eigenvecx_mul() {
+        // VecX*Scalar
+        {
+            let mut vec1 = VecX::new_with_size(2);
+            vec1.set(0, 2.0);
+            vec1.set(1, 3.0);
+            let scalar = 5.0;
+            assert_eq!((&vec1 * scalar).data(), [10.0, 15.0]);
+        }
+
+        // Scalar*VecX
+        {
+            let mut vec1 = VecX::new_with_size(2);
+            vec1.set(0, 2.0);
+            vec1.set(1, 3.0);
+            let scalar = 5.0;
+            assert_eq!((scalar * &vec1).data(), [10.0, 15.0]);
+        }
+    }
+
+    #[test]
+    fn eigenvecx_mulassign() {
+        let mut vec1 = VecX::new_with_size(2);
+        vec1.set(0, 2.0);
+        vec1.set(1, 3.0);
+        vec1 *= 5.0;
+        assert_eq!(vec1.data(), [10.0, 15.0]);
+    }
+
+    #[test]
+    fn eigenvecx_div() {
+        // VecX/Scalar
+        let mut vec1 = VecX::new_with_size(2);
+        vec1.set(0, 2.0);
+        vec1.set(1, 3.0);
+        let scalar = 5.0;
+        assert_eq!((&vec1 / scalar).data(), [2.0 / 5.0, 3.0 / 5.0]);
+    }
+
+    #[test]
+    fn eigenvecx_divassign() {
+        let mut vec1 = VecX::new_with_size(2);
+        vec1.set(0, 2.0);
+        vec1.set(1, 3.0);
+        vec1 /= 5.0;
+        assert_eq!(vec1.data(), [2.0 / 5.0, 3.0 / 5.0]);
     }
 }
