@@ -5,9 +5,11 @@ use std::ops;
 cpp! {{
     #include <Eigen/Core>
     #include <Eigen/Dense>
+    #include <Eigen/Sparse>
     typedef double Scalar;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatX;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VecX;
+    typedef Eigen::SparseMatrix<Scalar> SparseMatrix;
     typedef Eigen::Index Index;
 }}
 
@@ -524,6 +526,279 @@ impl ops::DivAssign<Scalar> for VecX {
     }
 }
 
+cpp_class!(pub unsafe struct SparseMatrix as "SparseMatrix");
+impl SparseMatrix {
+    pub fn new() -> Self {
+        unsafe {
+            cpp!([] -> SparseMatrix as "SparseMatrix" {
+                return SparseMatrix();
+            })
+        }
+    }
+
+    pub fn new_with_size(x: Index, y: Index) -> Self {
+        unsafe {
+            cpp!([x as "Index", y as "Index"] -> SparseMatrix as "SparseMatrix" {
+                return SparseMatrix(x, y);
+            })
+        }
+    }
+
+    pub fn new_from_mat(mat: &SparseMatrix) -> Self {
+        unsafe {
+            cpp!([mat as "const SparseMatrix*"] -> SparseMatrix as "SparseMatrix" {
+                return SparseMatrix(*mat);
+            })
+        }
+    }
+
+    pub fn resize(&mut self, x: Index, y: Index) {
+        unsafe {
+            cpp!([self as "SparseMatrix*", x as "Index", y as "Index"] {
+                return self->resize(x, y);
+            })
+        }
+    }
+
+    pub fn rows(&self) -> Index {
+        unsafe {
+            cpp!([self as "const SparseMatrix*"] -> Index as "Index" {
+                return self->rows();
+            })
+        }
+    }
+
+    pub fn cols(&self) -> Index {
+        unsafe {
+            cpp!([self as "const SparseMatrix*"] -> Index as "Index" {
+                return self->cols();
+            })
+        }
+    }
+
+    pub fn non_zeros(&self) -> Index {
+        unsafe {
+            cpp!([self as "const SparseMatrix*"] -> Index as "Index" {
+                return self->nonZeros();
+            })
+        }
+    }
+
+    pub fn reserve(&mut self, nnz: Index) {
+        unsafe {
+            cpp!([self as "SparseMatrix*", nnz as "Index"] {
+                return self->reserve(nnz);
+            })
+        }
+    }
+
+    pub fn insert(&mut self, x: Index, y: Index, value: Scalar) {
+        unsafe {
+            cpp!([self as "SparseMatrix*", x as "Index", y as "Index", value as "Scalar"] {
+                self->insert(x, y) = value;
+            })
+        }
+    }
+
+    pub fn make_compressed(&mut self) {
+        unsafe {
+            cpp!([self as "SparseMatrix*"] {
+                return self->makeCompressed();
+            })
+        }
+    }
+
+    pub fn transpose(&self) -> SparseMatrix {
+        unsafe {
+            cpp!([self as "const SparseMatrix*"] -> SparseMatrix as "SparseMatrix"{
+                return self->transpose();
+            })
+        }
+    }
+
+    pub fn adjoint(&self) -> SparseMatrix {
+        unsafe {
+            cpp!([self as "const SparseMatrix*"] -> SparseMatrix as "SparseMatrix"{
+                return self->adjoint();
+            })
+        }
+    }
+
+    // TODO(ish): setFromTriplets
+}
+
+impl ops::Neg for &SparseMatrix {
+    type Output = SparseMatrix;
+
+    fn neg(self) -> Self::Output {
+        unsafe {
+            cpp!([self as "const SparseMatrix*"] -> SparseMatrix as "SparseMatrix" {
+                return -(*self);
+            })
+        }
+    }
+}
+
+impl ops::Add<&SparseMatrix> for &SparseMatrix {
+    type Output = SparseMatrix;
+
+    fn add(self, rhs: &SparseMatrix) -> SparseMatrix {
+        unsafe {
+            cpp!([self as "const SparseMatrix*", rhs as "const SparseMatrix*"] -> SparseMatrix as "SparseMatrix" {
+                return *self + *rhs;
+            })
+        }
+    }
+}
+
+impl ops::AddAssign<&SparseMatrix> for SparseMatrix {
+    fn add_assign(&mut self, other: &SparseMatrix) {
+        unsafe {
+            cpp!([self as "SparseMatrix*", other as "const SparseMatrix*"] {
+                *self += *other;
+            })
+        }
+    }
+}
+
+impl ops::Sub<&SparseMatrix> for &SparseMatrix {
+    type Output = SparseMatrix;
+
+    fn sub(self, rhs: &SparseMatrix) -> SparseMatrix {
+        unsafe {
+            cpp!([self as "const SparseMatrix*", rhs as "const SparseMatrix*"] -> SparseMatrix as "SparseMatrix" {
+                return *self - *rhs;
+            })
+        }
+    }
+}
+
+impl ops::SubAssign<&SparseMatrix> for SparseMatrix {
+    fn sub_assign(&mut self, other: &SparseMatrix) {
+        unsafe {
+            cpp!([self as "SparseMatrix*", other as "const SparseMatrix*"] {
+                *self -= *other;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&SparseMatrix> for &SparseMatrix {
+    type Output = SparseMatrix;
+
+    fn mul(self, rhs: &SparseMatrix) -> SparseMatrix {
+        unsafe {
+            cpp!([self as "const SparseMatrix*", rhs as "const SparseMatrix*"] -> SparseMatrix as "SparseMatrix" {
+                return *self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&VecX> for &SparseMatrix {
+    type Output = VecX;
+
+    fn mul(self, rhs: &VecX) -> VecX {
+        unsafe {
+            cpp!([self as "const SparseMatrix*", rhs as "const VecX*"] -> VecX as "VecX" {
+                return *self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&MatX> for &SparseMatrix {
+    type Output = MatX;
+
+    fn mul(self, rhs: &MatX) -> MatX {
+        unsafe {
+            cpp!([self as "const SparseMatrix*", rhs as "const MatX*"] -> MatX as "MatX" {
+                return *self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&SparseMatrix> for &MatX {
+    type Output = MatX;
+
+    fn mul(self, rhs: &SparseMatrix) -> MatX {
+        unsafe {
+            cpp!([self as "const MatX*", rhs as "const SparseMatrix*"] -> MatX as "MatX" {
+                return *self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&SparseMatrix> for &VecX {
+    type Output = MatX;
+
+    fn mul(self, rhs: &SparseMatrix) -> MatX {
+        unsafe {
+            cpp!([self as "const VecX*", rhs as "const SparseMatrix*"] -> MatX as "MatX" {
+                return *self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<Scalar> for &SparseMatrix {
+    type Output = SparseMatrix;
+
+    fn mul(self, rhs: Scalar) -> SparseMatrix {
+        unsafe {
+            cpp!([self as "const SparseMatrix*", rhs as "Scalar"] -> SparseMatrix as "SparseMatrix" {
+                return *self * rhs;
+            })
+        }
+    }
+}
+
+impl ops::Mul<&SparseMatrix> for Scalar {
+    type Output = SparseMatrix;
+
+    fn mul(self, rhs: &SparseMatrix) -> SparseMatrix {
+        unsafe {
+            cpp!([self as "Scalar", rhs as "const SparseMatrix*"] -> SparseMatrix as "SparseMatrix" {
+                return self * *rhs;
+            })
+        }
+    }
+}
+
+impl ops::MulAssign<Scalar> for SparseMatrix {
+    fn mul_assign(&mut self, rhs: Scalar) {
+        unsafe {
+            cpp!([self as "SparseMatrix*", rhs as "Scalar"] {
+                *self *= rhs;
+            })
+        }
+    }
+}
+
+impl ops::Div<Scalar> for &SparseMatrix {
+    type Output = SparseMatrix;
+
+    fn div(self, rhs: Scalar) -> SparseMatrix {
+        unsafe {
+            cpp!([self as "const SparseMatrix*", rhs as "Scalar"] -> SparseMatrix as "SparseMatrix" {
+                return *self / rhs;
+            })
+        }
+    }
+}
+
+impl ops::DivAssign<Scalar> for SparseMatrix {
+    fn div_assign(&mut self, rhs: Scalar) {
+        unsafe {
+            cpp!([self as "SparseMatrix*", rhs as "Scalar"] {
+                *self /= rhs;
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -915,4 +1190,6 @@ mod tests {
         vec1 /= 5.0;
         assert_eq!(vec1.data(), [2.0 / 5.0, 3.0 / 5.0]);
     }
+
+    // TODO(ish): test all SparseMatrix functions
 }
