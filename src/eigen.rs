@@ -6,12 +6,14 @@ cpp! {{
     #include <Eigen/Core>
     #include <Eigen/Dense>
     #include <Eigen/Sparse>
-    #include <iterator>
+    #include <memory>
     typedef double Scalar;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatX;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VecX;
     typedef Eigen::SparseMatrix<Scalar> SparseMatrix;
     typedef Eigen::Triplet<Scalar> Triplet;
+    typedef Eigen::SimplicialLLT<SparseMatrix, Eigen::Upper> SimplicialLLT_;
+    typedef std::unique_ptr<SimplicialLLT_> SimplicialLLT;
     typedef Eigen::Index Index;
 }}
 
@@ -537,6 +539,87 @@ impl Triplet {
             })
         }
     }
+}
+
+cpp_class!(pub unsafe struct SimplicialLLT as "SimplicialLLT");
+impl SimplicialLLT {
+    pub fn new() -> Self {
+        unsafe {
+            cpp!([] -> SimplicialLLT as "SimplicialLLT" {
+                return std::unique_ptr<SimplicialLLT_>(new SimplicialLLT_);
+            })
+        }
+    }
+
+    pub fn analyze_pattern(&mut self, mat: &SparseMatrix) {
+        unsafe {
+            cpp!([self as "SimplicialLLT", mat as "const SparseMatrix*"] {
+                self->analyzePattern(*mat);
+            })
+        }
+    }
+
+    pub fn compute(&self, mat: &SparseMatrix) {
+        unsafe {
+            cpp!([self as "SimplicialLLT", mat as "const SparseMatrix*"] {
+                self->compute(*mat);
+            })
+        }
+    }
+
+    pub fn determinant(&self) -> Scalar {
+        unsafe {
+            cpp!([self as "SimplicialLLT"] -> Scalar as "Scalar" {
+                return self->determinant();
+            })
+        }
+    }
+
+    pub fn factorize(&self, mat: &SparseMatrix) {
+        unsafe {
+            cpp!([self as "SimplicialLLT", mat as "const SparseMatrix*"] {
+                self->factorize(*mat);
+            })
+        }
+    }
+
+    pub fn info(&self) -> ComputationInfo {
+        let value;
+        unsafe {
+            value = cpp!([self as "SimplicialLLT"] -> i32 as "int32_t" {
+                auto info = self->info();
+                if (info == Eigen::Success) {
+                    return 1;
+                }
+                else {
+                    return 2;
+                }
+            });
+        }
+        if value == 1 {
+            return ComputationInfo::Success;
+        } else if value == 2 {
+            return ComputationInfo::NumericalIssue;
+        } else {
+            panic!("eigen: couldn't set the correct ComputationInfo");
+        }
+    }
+
+    /// Solves matrix equation Ax=b
+    pub fn solve(&self, b: &VecX) -> VecX {
+        unsafe {
+            cpp!([self as "SimplicialLLT", b as "const VecX*"] -> VecX as "VecX" {
+                return self->solve(*b);
+            })
+        }
+    }
+}
+
+pub enum ComputationInfo {
+    Success,
+    NumericalIssue,
+    NoConvergence,
+    InvalidInput,
 }
 
 cpp_class!(pub unsafe struct SparseMatrix as "SparseMatrix");
@@ -1213,4 +1296,5 @@ mod tests {
     }
 
     // TODO(ish): test all SparseMatrix functions
+    // TODO(ish): test all SimplicialLLT functions
 }
