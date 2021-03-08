@@ -36,31 +36,25 @@ pub struct Vert {
     edges: IncidentEdges,
 }
 
-/// Edge stores the information gap between faces and indices to allow for faster access of adjacent face information
+/// Edge stores the information gap between faces and vertices to allow for faster access of adjacent face information
 ///
 /// Each Edge has a pair of Verts (Made as Option because it may not
 /// have this information when it first is created)
-///
-/// Each Edge also stores the Face that made that Edge, no two Faces
-/// share an Edge to ensure correct winding of the Mesh can be
-/// done. The verts stored will be the same but since their ordering
-/// can differ based on the winding, unique Edges need to be created.
 pub struct Edge {
     self_index: EdgeIndex,
 
     verts: Option<(VertIndex, VertIndex)>,
-    face: IncidentFace,
+    faces: IncidentFaces,
 }
 
-/// Face stores the edges that form the Face. These edges are unique
-/// (refer to documentation for Edge for further information)
+/// Face stores the vertices in order that form that face, this is done instead of storing edges to prevent winding/orientation problems with the mesh.
 ///
 /// Each Face also stores the face normal optionally
 pub struct Face {
     self_index: FaceIndex,
     pub normal: Option<glm::DVec3>,
 
-    edges: AdjacentEdges,
+    verts: AdjacentVerts,
 }
 
 /// Mesh stores the Node, Vert, Edge, Face data in an Arena
@@ -90,8 +84,7 @@ pub struct FaceIndex(Index);
 
 type IncidentVerts = Vec<VertIndex>;
 type IncidentEdges = Vec<EdgeIndex>;
-type IncidentFace = Option<FaceIndex>;
-type AdjacentEdges = IncidentEdges;
+type IncidentFaces = Vec<FaceIndex>;
 type AdjacentVerts = IncidentVerts;
 
 /// Errors during operations on Mesh
@@ -184,39 +177,19 @@ impl Mesh {
         return FaceIndex(face_index);
     }
 
-    /// Gives set of vert indices that are adjacent to the face
-    pub fn get_adjacent_vert_indices(&self, face: &Face) -> Option<AdjacentVerts> {
-        assert!(self.edges.len() > 2);
-        let mut adjacent_verts = Vec::with_capacity(face.edges.len());
-
-        for edge_index in &face.edges {
-            let edge = self.edges.get(edge_index.0)?;
-            let (vert_1, vert_2) = edge.verts.as_ref()?;
-            add_as_set(&mut adjacent_verts, *vert_1);
-            add_as_set(&mut adjacent_verts, *vert_2);
-        }
-
-        return Some(adjacent_verts);
-    }
-
-    /// Gives the list of connecting edges indices if there exists at least one
-    pub fn get_connecting_edges_indices(
+    /// Gives the connecting edge index if there exists one
+    pub fn get_connecting_edge_index(
         &self,
         vert_1_index: VertIndex,
         vert_2_index: VertIndex,
-    ) -> Option<IncidentEdges> {
-        let mut edges = Vec::new();
-
+    ) -> Option<EdgeIndex> {
         for edge_index in &self.verts.get(vert_1_index.0)?.edges {
             let edge = self.edges.get(edge_index.0)?;
             if edge.has_vert(vert_2_index) {
-                edges.push(*edge_index);
+                return Some(*edge_index);
             }
         }
 
-        if edges.len() > 0 {
-            return Some(edges);
-        }
         return None;
     }
 
@@ -257,41 +230,49 @@ impl Mesh {
             }
 
             let mut face_edges = Vec::new();
+            let mut face_verts = Vec::new();
 
             // Update edges
             for ((_, vert_1_index, _), (_, vert_2_index, _)) in
                 face_i.into_iter().circular_tuple_windows()
             {
-                // Always create a new edge to ensure that the mesh's faces
-                // can be oriented, otherwise there will be mesh winding cannot be made consistent
-                let edge_index = self.add_empty_edge_index();
-                let edge = self.edges.get_mut(edge_index.0).unwrap();
                 let vert_1_index = self.verts.get_unknown_gen_mut(vert_1_index).unwrap().1;
                 let vert_2_index = self.verts.get_unknown_gen_mut(vert_2_index).unwrap().1;
+                match self
+                    .get_connecting_edge_index(VertIndex(vert_1_index), VertIndex(vert_2_index))
+                {
+                    Some(edge_index) => {
+                        let edge = self.edges.get(edge_index.0).unwrap();
+                        face_edges.push(edge.self_index);
+                    }
+                    None => {
+                        let edge_index = self.add_empty_edge_index();
+                        let edge = self.edges.get_mut(edge_index.0).unwrap();
+                        // Update edge with vert
+                        edge.verts = Some((VertIndex(vert_1_index), VertIndex(vert_2_index)));
+                        // Update vert with edge
+                        let vert_1 = self.verts.get_mut(vert_1_index).unwrap();
+                        vert_1.edges.push(edge.self_index);
+                        let vert_2 = self.verts.get_mut(vert_2_index).unwrap();
+                        vert_2.edges.push(edge.self_index);
+                        face_edges.push(edge.self_index);
+                    }
+                }
 
-                // Update edge with vert
-                edge.verts = Some((VertIndex(vert_1_index), VertIndex(vert_2_index)));
-
-                // Update vert with edge
-                let vert_1 = self.verts.get_mut(vert_1_index).unwrap();
-                vert_1.edges.push(edge.self_index);
-                let vert_2 = self.verts.get_mut(vert_2_index).unwrap();
-                vert_2.edges.push(edge.self_index);
-
-                face_edges.push(edge.self_index);
+                face_verts.push(VertIndex(vert_1_index));
             }
 
             // Update faces
             {
                 let face_index = self.add_empty_face_index();
                 let face = self.faces.get_mut(face_index.0).unwrap();
-                // Update face with edge
-                face.edges = face_edges;
+                // Update face with verts
+                face.verts = face_verts;
 
                 // Update edges with face
-                for edge_index in &face.edges {
+                for edge_index in &face_edges {
                     let edge = self.edges.get_mut(edge_index.0).unwrap();
-                    edge.face = Some(face.self_index);
+                    edge.faces.push(face.self_index);
                 }
             }
         }
@@ -391,7 +372,7 @@ impl Mesh {
         let mut gl_indices: Vec<gl::types::GLuint> = Vec::with_capacity(self.faces.len() * 3);
 
         for (_, face) in &self.faces {
-            let verts = self.get_adjacent_vert_indices(face).unwrap();
+            let verts = &face.verts;
 
             let vert_1_index = verts[0];
             let vert_1 = self.verts.get(vert_1_index.0).unwrap();
@@ -466,7 +447,7 @@ impl Face {
             self_index,
             normal: None,
 
-            edges: Vec::new(),
+            verts: Vec::new(),
         };
     }
 }
@@ -477,7 +458,7 @@ impl Edge {
             self_index,
 
             verts: None,
-            face: None,
+            faces: Vec::new(),
         };
     }
 
@@ -555,7 +536,7 @@ impl Node {
     }
 }
 
-fn add_as_set<T>(vec: &mut Vec<T>, val: T)
+fn _add_as_set<T>(vec: &mut Vec<T>, val: T)
 where
     T: PartialEq,
 {
@@ -575,7 +556,7 @@ mod tests {
         mesh.read(&Path::new("tests/obj_test_01.obj")).unwrap();
         assert_eq!(mesh.faces.len(), 2);
         for (_, face) in &mesh.faces {
-            assert_eq!(face.edges.len(), 3);
+            assert_eq!(face.verts.len(), 3);
         }
         assert_eq!(mesh.edges.len(), 7);
         for (_, edge) in &mesh.edges {
