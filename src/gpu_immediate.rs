@@ -582,8 +582,9 @@ impl GPUImmediate {
         }
     }
 
-    pub fn get_vertex_format(&self) -> &GPUVertFormat {
-        return &self.vertex_format;
+    pub fn get_cleared_vertex_format(&mut self) -> &mut GPUVertFormat {
+        self.vertex_format.clear();
+        return &mut self.vertex_format;
     }
 
     fn set_attr_value_bit(&mut self, attr_id: usize) {
