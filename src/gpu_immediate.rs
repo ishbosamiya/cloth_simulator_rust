@@ -123,7 +123,7 @@ struct GPUVertAttr {
     sz: u8,
     offset: u8,
     gl_comp_type: gl::types::GLenum,
-    names: Vec<String>,
+    name: String,
 }
 
 impl GPUVertAttr {
@@ -135,7 +135,7 @@ impl GPUVertAttr {
             sz: 0,
             offset: 0,
             gl_comp_type: gl::NONE,
-            names: Vec::new(),
+            name: String::new(),
         };
     }
 
@@ -238,7 +238,7 @@ impl GPUVertFormat {
         // TODO(ish): add asserts
         let mut attr = GPUVertAttr::new();
 
-        attr.names.push(name);
+        attr.name = name;
         attr.comp_type = comp_type;
         attr.gl_comp_type = attr.comp_type.to_gl();
         attr.comp_len = comp_len.try_into().unwrap();
@@ -256,7 +256,7 @@ impl GPUVertFormat {
     pub fn clear(&mut self) {
         self.attrs.clear();
         self.packed = false;
-        self.attrs.iter_mut().for_each(|attr| attr.names.clear());
+        self.attrs.iter_mut().for_each(|attr| attr.name.clear());
     }
 }
 
@@ -365,15 +365,12 @@ impl GPUImmediate {
         self.attr_binding.clear();
 
         for (attr_index, a) in self.vertex_format.attrs.iter().enumerate() {
-            // TODO(ish): figure out if a.names has only one name
-            for name in &a.names {
-                let location;
-                unsafe {
-                    location = gl::GetAttribLocation(shader.get_id(), str_to_cstr(name).as_ptr());
-                }
-                self.attr_binding
-                    .write_attr_location(attr_index, location.try_into().unwrap());
+            let location;
+            unsafe {
+                location = gl::GetAttribLocation(shader.get_id(), str_to_cstr(&a.name).as_ptr());
             }
+            self.attr_binding
+                .write_attr_location(attr_index, location.try_into().unwrap());
         }
 
         self.prim_type = prim_type;
