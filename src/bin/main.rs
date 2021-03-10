@@ -84,7 +84,7 @@ fn main() {
         45.0,
     );
 
-    let mut imm = GPUImmediate::new();
+    let mut _imm = GPUImmediate::new();
 
     let mut last_cursor = window.borrow().get_cursor_pos();
 
@@ -145,8 +145,6 @@ fn main() {
         // face_orientation_shader.use_shader();
         mesh.generate_gl_mesh(false);
         mesh.draw().unwrap();
-
-        imm_test(&mut imm, &smooth_3d_color_shader);
 
         window.borrow_mut().swap_buffers();
 
@@ -223,29 +221,4 @@ impl FPS {
             self.frames = 0;
         }
     }
-}
-
-fn imm_test(imm: &mut GPUImmediate, shader: &Shader) {
-    let edge_len = 1;
-    let format = imm.get_cleared_vertex_format();
-    let pos = format.add_attribute(
-        "pos\0".to_string(),
-        GPUVertCompType::F32,
-        3,
-        GPUVertFetchMode::Float,
-    );
-    let color = format.add_attribute(
-        "color\0".to_string(),
-        GPUVertCompType::F32,
-        4,
-        GPUVertFetchMode::Float,
-    );
-    shader.use_shader();
-    shader.set_mat4("model\0", &glm::identity());
-    imm.begin(GPUPrimType::Lines, edge_len * 2, shader);
-    imm.attr_4f(color, 1.0, 0.0, 0.0, 1.0);
-    imm.vertex_3f(pos, 1.0, 2.0, 1.0);
-    imm.attr_4f(color, 0.0, 1.0, 0.0, 1.0);
-    imm.vertex_3f(pos, -1.0, -2.0, -1.0);
-    imm.end();
 }
