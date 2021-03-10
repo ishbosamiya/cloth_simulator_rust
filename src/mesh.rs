@@ -7,7 +7,9 @@ use std::path::Path;
 
 use crate::drawable::Drawable;
 use crate::gl_mesh::{GLMesh, GLVert};
+use crate::gpu_immediate::*;
 use crate::meshreader::{MeshReader, MeshReaderError};
+use crate::shader::Shader;
 
 /// Node stores the world (3D) space coordinates
 ///
@@ -409,6 +411,17 @@ pub enum MeshDrawError {
     ErrorWhileDrawing,
 }
 
+pub struct MeshDrawData<'a> {
+    imm: &'a mut GPUImmediate,
+    shader: &'a Shader,
+}
+
+impl<'a> MeshDrawData<'a> {
+    pub fn new(imm: &'a mut GPUImmediate, shader: &'a Shader) -> Self {
+        return MeshDrawData { imm, shader };
+    }
+}
+
 impl std::fmt::Display for MeshDrawError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -430,13 +443,122 @@ impl From<()> for MeshDrawError {
     }
 }
 
-impl Drawable<MeshDrawError> for Mesh {
-    fn draw(&self) -> Result<(), MeshDrawError> {
-        match self.gl_mesh {
-            None => return Err(MeshDrawError::GenerateGLMeshFirst),
-            Some(_) => (),
+impl Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh {
+    fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
+        // match self.gl_mesh {
+        //     None => return Err(MeshDrawError::GenerateGLMeshFirst),
+        //     Some(_) => (),
+        // }
+        // self.gl_mesh.as_ref().unwrap().draw()?;
+
+        let imm = &mut draw_data.imm;
+        let shader = &draw_data.shader;
+        shader.use_shader();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "color\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        // let pos_attr = format.add_attribute(
+        //     "aPos\0".to_string(),
+        //     GPUVertCompType::F32,
+        //     3,
+        //     GPUVertFetchMode::Float,
+        // );
+        // let uv_attr = format.add_attribute(
+        //     "aTexCoord\0".to_string(),
+        //     GPUVertCompType::F32,
+        //     2,
+        //     GPUVertFetchMode::Float,
+        // );
+        // let normal_attr = format.add_attribute(
+        //     "aNormal\0".to_string(),
+        //     GPUVertCompType::F32,
+        //     3,
+        //     GPUVertFetchMode::Float,
+        // );
+
+        imm.begin_at_most(GPUPrimType::Tris, self.faces.len() * 10, shader);
+
+        for (_, face) in &self.faces {
+            let verts = &face.verts;
+            let vert_1_index = verts[0];
+            let vert_1 = self.verts.get(vert_1_index.0).unwrap();
+            let node_1 = self.nodes.get(vert_1.node.unwrap().0).unwrap();
+            for (vert_2_index, vert_3_index) in verts.iter().skip(1).tuple_windows() {
+                let vert_2 = self.verts.get(vert_2_index.0).unwrap();
+                let vert_3 = self.verts.get(vert_3_index.0).unwrap();
+
+                let node_2 = self.nodes.get(vert_2.node.unwrap().0).unwrap();
+                let node_3 = self.nodes.get(vert_3.node.unwrap().0).unwrap();
+
+                let node_1_normal: glm::Vec3 = glm::convert(node_1.normal.unwrap());
+                imm.attr_4f(
+                    color_attr,
+                    node_1_normal[0],
+                    node_1_normal[1],
+                    node_1_normal[2],
+                    1.0,
+                );
+                // imm.attr_3f(
+                //     normal_attr,
+                //     node_1_normal[0],
+                //     node_1_normal[1],
+                //     node_1_normal[2],
+                // );
+                // imm.attr_2f(uv_attr, 0.0, 0.0);
+                let node_1_pos: glm::Vec3 = glm::convert(node_1.pos);
+                imm.vertex_3f(pos_attr, node_1_pos[0], node_1_pos[1], node_1_pos[2]);
+
+                let node_2_normal: glm::Vec3 = glm::convert(node_2.normal.unwrap());
+                imm.attr_4f(
+                    color_attr,
+                    node_2_normal[0],
+                    node_2_normal[1],
+                    node_2_normal[2],
+                    1.0,
+                );
+                // imm.attr_3f(
+                //     normal_attr,
+                //     node_2_normal[0],
+                //     node_2_normal[1],
+                //     node_2_normal[2],
+                // );
+                // imm.attr_2f(uv_attr, 0.0, 0.0);
+                let node_2_pos: glm::Vec3 = glm::convert(node_2.pos);
+                imm.vertex_3f(pos_attr, node_2_pos[0], node_2_pos[1], node_2_pos[2]);
+
+                let node_3_normal: glm::Vec3 = glm::convert(node_3.normal.unwrap());
+                imm.attr_4f(
+                    color_attr,
+                    node_3_normal[0],
+                    node_3_normal[1],
+                    node_3_normal[2],
+                    1.0,
+                );
+                // imm.attr_3f(
+                //     normal_attr,
+                //     node_3_normal[0],
+                //     node_3_normal[1],
+                //     node_3_normal[2],
+                // );
+                // imm.attr_2f(uv_attr, 0.0, 0.0);
+                let node_3_pos: glm::Vec3 = glm::convert(node_3.pos);
+                imm.vertex_3f(pos_attr, node_3_pos[0], node_3_pos[1], node_3_pos[2]);
+            }
         }
-        self.gl_mesh.as_ref().unwrap().draw()?;
+
+        imm.end();
+
         return Ok(());
     }
 }

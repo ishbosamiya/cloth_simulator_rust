@@ -126,8 +126,8 @@ impl GLMesh {
     }
 }
 
-impl Drawable<()> for GLMesh {
-    fn draw(&self) -> Result<(), ()> {
+impl Drawable<(), ()> for GLMesh {
+    fn draw(&self, _: &mut ()) -> Result<(), ()> {
         unsafe {
             gl::BindVertexArray(self.vao.unwrap());
             gl::DrawElements(

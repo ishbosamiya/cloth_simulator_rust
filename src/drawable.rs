@@ -1,3 +1,3 @@
-pub trait Drawable<Error> {
-    fn draw(&self) -> Result<(), Error>;
+pub trait Drawable<ExtraData, Error> {
+    fn draw(&self, extra_data: &mut ExtraData) -> Result<(), Error>;
 }

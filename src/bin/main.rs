@@ -11,7 +11,7 @@ use std::rc::Rc;
 use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::drawable::Drawable;
 use cloth_simulator_rust::gpu_immediate::*;
-use cloth_simulator_rust::mesh::Mesh;
+use cloth_simulator_rust::mesh::{Mesh, MeshDrawData};
 use cloth_simulator_rust::shader::Shader;
 
 fn main() {
@@ -84,7 +84,7 @@ fn main() {
         45.0,
     );
 
-    let mut _imm = GPUImmediate::new();
+    let mut imm = GPUImmediate::new();
 
     let mut last_cursor = window.borrow().get_cursor_pos();
 
@@ -143,8 +143,11 @@ fn main() {
         // default_shader.use_shader();
         directional_light_shader.use_shader();
         // face_orientation_shader.use_shader();
-        mesh.generate_gl_mesh(false);
-        mesh.draw().unwrap();
+        // mesh.generate_gl_mesh(false);
+
+        // let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
+        let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
+        mesh.draw(&mut draw_data).unwrap();
 
         window.borrow_mut().swap_buffers();
 
