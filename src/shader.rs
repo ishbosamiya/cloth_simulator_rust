@@ -1,6 +1,7 @@
 use gl;
 use nalgebra_glm as glm;
 
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
@@ -226,5 +227,73 @@ impl Shader {
 
     pub fn get_id(&self) -> gl::types::GLuint {
         return self.program_id;
+    }
+
+    pub fn get_attributes(&self) -> Vec<String> {
+        let mut attributes = Vec::new();
+        let mut count: gl::types::GLint = -1;
+        const MAX_LENGTH: usize = 100;
+        let mut name: [i8; MAX_LENGTH] = [-1; MAX_LENGTH];
+        let mut length: gl::types::GLsizei = -1;
+        let mut size: gl::types::GLint = -1;
+        let mut var_type: gl::types::GLenum = gl::NONE;
+        unsafe {
+            gl::GetProgramiv(self.get_id(), gl::ACTIVE_ATTRIBUTES, &mut count);
+        }
+
+        for i in 0..count {
+            unsafe {
+                gl::GetActiveAttrib(
+                    self.get_id(),
+                    i.try_into().unwrap(),
+                    MAX_LENGTH.try_into().unwrap(),
+                    &mut length,
+                    &mut size,
+                    &mut var_type,
+                    name.as_mut_ptr(),
+                );
+            }
+            let name_string: std::ffi::CString;
+            unsafe {
+                name_string = std::ffi::CString::from(std::ffi::CStr::from_ptr(name.as_ptr()));
+            }
+            attributes.push(name_string.into_string().unwrap());
+        }
+
+        return attributes;
+    }
+
+    pub fn get_uniforms(&self) -> Vec<String> {
+        let mut uniforms = Vec::new();
+        let mut count: gl::types::GLint = -1;
+        const MAX_LENGTH: usize = 100;
+        let mut name: [i8; MAX_LENGTH] = [-1; MAX_LENGTH];
+        let mut length: gl::types::GLsizei = -1;
+        let mut size: gl::types::GLint = -1;
+        let mut var_type: gl::types::GLenum = gl::NONE;
+        unsafe {
+            gl::GetProgramiv(self.get_id(), gl::ACTIVE_UNIFORMS, &mut count);
+        }
+
+        for i in 0..count {
+            unsafe {
+                gl::GetActiveUniform(
+                    self.get_id(),
+                    i.try_into().unwrap(),
+                    MAX_LENGTH.try_into().unwrap(),
+                    &mut length,
+                    &mut size,
+                    &mut var_type,
+                    name.as_mut_ptr(),
+                );
+            }
+            let name_string: std::ffi::CString;
+            unsafe {
+                name_string = std::ffi::CString::from(std::ffi::CStr::from_ptr(name.as_ptr()));
+            }
+            uniforms.push(name_string.into_string().unwrap());
+        }
+
+        return uniforms;
     }
 }
