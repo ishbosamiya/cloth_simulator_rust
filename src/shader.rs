@@ -223,4 +223,8 @@ impl Shader {
             );
         }
     }
+
+    pub fn get_id(&self) -> gl::types::GLuint {
+        return self.program_id;
+    }
 }
