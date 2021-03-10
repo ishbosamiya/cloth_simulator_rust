@@ -10,6 +10,7 @@ use std::rc::Rc;
 
 use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::drawable::Drawable;
+use cloth_simulator_rust::gpu_immediate::*;
 use cloth_simulator_rust::mesh::Mesh;
 use cloth_simulator_rust::shader::Shader;
 
@@ -68,6 +69,12 @@ fn main() {
     )
     .unwrap();
 
+    let smooth_3d_color_shader = Shader::new(
+        std::path::Path::new("shaders/shader_3D_smooth_color.vert"),
+        std::path::Path::new("shaders/shader_3D_smooth_color.frag"),
+    )
+    .unwrap();
+
     let mut camera = WindowCamera::new(
         Rc::downgrade(&window),
         glm::vec3(0.0, 0.0, 3.0),
@@ -76,6 +83,8 @@ fn main() {
         0.0,
         45.0,
     );
+
+    let mut imm = GPUImmediate::new();
 
     let mut last_cursor = window.borrow().get_cursor_pos();
 
@@ -98,6 +107,14 @@ fn main() {
         );
         default_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
         default_shader.set_mat4("model\0", &glm::identity());
+
+        smooth_3d_color_shader.use_shader();
+        smooth_3d_color_shader.set_mat4(
+            "projection\0",
+            &glm::convert(camera.get_projection_matrix()),
+        );
+        smooth_3d_color_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+        smooth_3d_color_shader.set_mat4("model\0", &glm::identity());
 
         directional_light_shader.use_shader();
         directional_light_shader.set_mat4(
@@ -128,6 +145,8 @@ fn main() {
         // face_orientation_shader.use_shader();
         mesh.generate_gl_mesh(false);
         mesh.draw().unwrap();
+
+        imm_test(&mut imm, &smooth_3d_color_shader);
 
         window.borrow_mut().swap_buffers();
 
@@ -204,4 +223,29 @@ impl FPS {
             self.frames = 0;
         }
     }
+}
+
+fn imm_test(imm: &mut GPUImmediate, shader: &Shader) {
+    let edge_len = 1;
+    let format = imm.get_cleared_vertex_format();
+    let pos = format.add_attribute(
+        "pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+    let color = format.add_attribute(
+        "color\0".to_string(),
+        GPUVertCompType::F32,
+        4,
+        GPUVertFetchMode::Float,
+    );
+    shader.use_shader();
+    shader.set_mat4("model\0", &glm::identity());
+    imm.begin(GPUPrimType::Lines, edge_len * 2, shader);
+    imm.attr_4f(color, 1.0, 0.0, 0.0, 1.0);
+    imm.vertex_3f(pos, 1.0, 2.0, 1.0);
+    imm.attr_4f(color, 0.0, 1.0, 0.0, 1.0);
+    imm.vertex_3f(pos, -1.0, -2.0, -1.0);
+    imm.end();
 }
