@@ -11,7 +11,7 @@ use std::rc::Rc;
 use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::drawable::Drawable;
 use cloth_simulator_rust::gpu_immediate::*;
-use cloth_simulator_rust::mesh::{Mesh, MeshDrawData};
+use cloth_simulator_rust::mesh::{MeshDrawData, SimpleMesh};
 use cloth_simulator_rust::shader::Shader;
 
 fn main() {
@@ -45,7 +45,7 @@ fn main() {
         gl::Enable(gl::DEPTH_TEST);
     }
 
-    let mut mesh = Mesh::new();
+    let mut mesh = SimpleMesh::new();
     mesh.read(&std::path::Path::new("models/monkey_subd_01.obj"))
         .unwrap();
     // mesh.read(&std::path::Path::new("models/cube.obj")).unwrap();

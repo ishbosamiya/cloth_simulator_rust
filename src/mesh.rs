@@ -11,16 +11,23 @@ use crate::gpu_immediate::*;
 use crate::meshreader::{MeshReader, MeshReaderError};
 use crate::shader::Shader;
 
+pub type SimpleNode = Node<()>;
+pub type SimpleVert = Vert<()>;
+pub type SimpleEdge = Edge<()>;
+pub type SimpleFace = Face<()>;
+pub type SimpleMesh = Mesh<(), (), (), ()>;
+
 /// Node stores the world (3D) space coordinates
 ///
 /// Each Node also optionally stores 3D space normal information
 /// (commonly referred to as Vertex Normals)
 ///
 /// Each Node can be referred to by many Verts
-pub struct Node {
+pub struct Node<ExtraData> {
     self_index: NodeIndex,
     pub pos: glm::DVec3,
     pub normal: Option<glm::DVec3>,
+    pub extra_data: Option<ExtraData>,
 
     verts: IncidentVerts,
 }
@@ -30,9 +37,10 @@ pub struct Node {
 /// A Vert can only have one Node but this Node can be shared by many Verts
 ///
 /// Each Vert can be referred to by many Edges
-pub struct Vert {
+pub struct Vert<ExtraData> {
     self_index: VertIndex,
     pub uv: Option<glm::DVec2>,
+    pub extra_data: Option<ExtraData>,
 
     node: Option<NodeIndex>,
     edges: IncidentEdges,
@@ -42,8 +50,9 @@ pub struct Vert {
 ///
 /// Each Edge has a pair of Verts (Made as Option because it may not
 /// have this information when it first is created)
-pub struct Edge {
+pub struct Edge<ExtraData> {
     self_index: EdgeIndex,
+    pub extra_data: Option<ExtraData>,
 
     verts: Option<(VertIndex, VertIndex)>,
     faces: IncidentFaces,
@@ -52,9 +61,10 @@ pub struct Edge {
 /// Face stores the vertices in order that form that face, this is done instead of storing edges to prevent winding/orientation problems with the mesh.
 ///
 /// Each Face also stores the face normal optionally
-pub struct Face {
+pub struct Face<ExtraData> {
     self_index: FaceIndex,
     pub normal: Option<glm::DVec3>,
+    pub extra_data: Option<ExtraData>,
 
     verts: AdjacentVerts,
 }
@@ -62,11 +72,11 @@ pub struct Face {
 /// Mesh stores the Node, Vert, Edge, Face data in an Arena
 ///
 /// Mesh optionally stores a renderable mesh, GLMesh
-pub struct Mesh {
-    nodes: Arena<Node>,
-    verts: Arena<Vert>,
-    edges: Arena<Edge>,
-    faces: Arena<Face>,
+pub struct Mesh<ExtraNodeData, ExtraVertData, ExtraEdgeData, ExtraFaceData> {
+    nodes: Arena<Node<ExtraNodeData>>,
+    verts: Arena<Vert<ExtraVertData>>,
+    edges: Arena<Edge<ExtraEdgeData>>,
+    faces: Arena<Face<ExtraFaceData>>,
 
     gl_mesh: Option<GLMesh>,
 }
@@ -113,8 +123,8 @@ impl std::fmt::Display for MeshError {
 
 impl std::error::Error for MeshError {}
 
-impl Mesh {
-    pub fn new() -> Mesh {
+impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
+    pub fn new() -> Mesh<END, EVD, EED, EFD> {
         return Mesh {
             nodes: Arena::new(),
             verts: Arena::new(),
@@ -125,14 +135,14 @@ impl Mesh {
         };
     }
 
-    pub fn get_faces(&self) -> &Arena<Face> {
+    pub fn get_faces(&self) -> &Arena<Face<EFD>> {
         return &self.faces;
     }
 
     /// Adds an empty Node and gives back mutable reference to it
     ///
     /// Use with caution
-    fn add_empty_node(&mut self, pos: glm::DVec3) -> &mut Node {
+    fn add_empty_node(&mut self, pos: glm::DVec3) -> &mut Node<END> {
         let node_index = self.nodes.insert_with(|self_index| {
             return Node::new(NodeIndex(self_index), pos);
         });
@@ -142,7 +152,7 @@ impl Mesh {
     /// Adds an empty Vert and gives back mutable reference to it
     ///
     /// Use with caution
-    fn add_empty_vert(&mut self) -> &mut Vert {
+    fn add_empty_vert(&mut self) -> &mut Vert<EVD> {
         let vert_index = self.verts.insert_with(|self_index| {
             return Vert::new(VertIndex(self_index));
         });
@@ -325,11 +335,11 @@ impl Mesh {
 
     pub fn generate_gl_mesh(&mut self, use_face_normal: bool) {
         #[inline]
-        fn store_in_gl_vert(
+        fn store_in_gl_vert<END, EVD, EFD>(
             gl_verts: &mut Vec<GLVert>,
-            vert: &Vert,
-            node: &Node,
-            face: &Face,
+            vert: &Vert<EVD>,
+            node: &Node<END>,
+            face: &Face<EFD>,
             use_face_normal: bool,
         ) {
             match vert.uv {
@@ -443,7 +453,7 @@ impl From<()> for MeshDrawError {
     }
 }
 
-impl Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh {
+impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END, EVD, EED, EFD> {
     fn draw(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
         let imm = &mut draw_data.imm;
         let shader = &draw_data.shader;
@@ -524,21 +534,23 @@ impl Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh {
     }
 }
 
-impl Face {
-    pub fn new(self_index: FaceIndex) -> Face {
+impl<ExtraData> Face<ExtraData> {
+    pub fn new(self_index: FaceIndex) -> Face<ExtraData> {
         return Face {
             self_index,
             normal: None,
+            extra_data: None,
 
             verts: Vec::new(),
         };
     }
 }
 
-impl Edge {
-    pub fn new(self_index: EdgeIndex) -> Edge {
+impl<ExtraData> Edge<ExtraData> {
+    pub fn new(self_index: EdgeIndex) -> Edge<ExtraData> {
         return Edge {
             self_index,
+            extra_data: None,
 
             verts: None,
             faces: Vec::new(),
@@ -591,11 +603,12 @@ impl Edge {
     }
 }
 
-impl Vert {
-    pub fn new(self_index: VertIndex) -> Vert {
+impl<ExtraData> Vert<ExtraData> {
+    pub fn new(self_index: VertIndex) -> Vert<ExtraData> {
         return Vert {
             self_index,
             uv: None,
+            extra_data: None,
 
             node: None,
             edges: Vec::new(),
@@ -603,12 +616,13 @@ impl Vert {
     }
 }
 
-impl Node {
-    pub fn new(self_index: NodeIndex, pos: glm::DVec3) -> Node {
+impl<ExtraData> Node<ExtraData> {
+    pub fn new(self_index: NodeIndex, pos: glm::DVec3) -> Node<ExtraData> {
         return Node {
             self_index,
             pos,
             normal: None,
+            extra_data: None,
 
             verts: Vec::new(),
         };
@@ -635,7 +649,7 @@ mod tests {
     #[test]
     fn mesh_read_test() {
         // TODO(ish): add more comprehensive relation tests
-        let mut mesh = Mesh::new();
+        let mut mesh = SimpleMesh::new();
         mesh.read(&Path::new("tests/obj_test_01.obj")).unwrap();
         assert_eq!(mesh.faces.len(), 2);
         for (_, face) in &mesh.faces {
@@ -662,7 +676,7 @@ mod tests {
 
     #[test]
     fn mesh_no_uv() {
-        let mut mesh = Mesh::new();
+        let mut mesh = SimpleMesh::new();
         match mesh.read(&Path::new("tests/obj_test_05_square_no_uv.obj")) {
             Err(err) => match err {
                 MeshError::NoUV => (),
