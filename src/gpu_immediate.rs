@@ -251,6 +251,8 @@ impl GPUVertFormat {
 
         self.attrs.push(attr);
         return self.attrs.len() - 1;
+
+        // TODO(ish): this is returning a value within self.attrs which doesn't have to correspond with the value in the vertex shader. Need to figure out what is happening
     }
 
     pub fn clear(&mut self) {

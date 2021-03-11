@@ -75,6 +75,27 @@ fn main() {
     )
     .unwrap();
 
+    println!(
+        "default: uniforms: {:?} attributes: {:?}",
+        default_shader.get_uniforms(),
+        default_shader.get_attributes(),
+    );
+    println!(
+        "directional_light: uniforms: {:?} attributes: {:?}",
+        directional_light_shader.get_uniforms(),
+        directional_light_shader.get_attributes(),
+    );
+    println!(
+        "face_orientation: uniforms: {:?} attributes: {:?}",
+        face_orientation_shader.get_uniforms(),
+        face_orientation_shader.get_attributes(),
+    );
+    println!(
+        "smooth_3d_color: uniforms: {:?} attributes: {:?}",
+        smooth_3d_color_shader.get_uniforms(),
+        smooth_3d_color_shader.get_attributes(),
+    );
+
     let mut camera = WindowCamera::new(
         Rc::downgrade(&window),
         glm::vec3(0.0, 0.0, 3.0),
@@ -145,8 +166,8 @@ fn main() {
         // face_orientation_shader.use_shader();
         // mesh.generate_gl_mesh(false);
 
-        // let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
-        let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
+        let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
+        // let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
         mesh.draw(&mut draw_data).unwrap();
 
         window.borrow_mut().swap_buffers();

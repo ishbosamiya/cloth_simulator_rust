@@ -15,7 +15,6 @@ struct Light {
   vec3 specular;
 };
 
-in vec2 TexCoord;
 in vec3 Normal;
 in vec3 FragPos;
 
