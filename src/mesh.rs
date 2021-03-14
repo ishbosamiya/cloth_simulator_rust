@@ -11,12 +11,6 @@ use crate::gpu_immediate::*;
 use crate::meshreader::{MeshReader, MeshReaderError};
 use crate::shader::Shader;
 
-pub type SimpleNode = Node<()>;
-pub type SimpleVert = Vert<()>;
-pub type SimpleEdge = Edge<()>;
-pub type SimpleFace = Face<()>;
-pub type SimpleMesh = Mesh<(), (), (), ()>;
-
 /// Node stores the world (3D) space coordinates
 ///
 /// Each Node also optionally stores 3D space normal information
@@ -633,6 +627,14 @@ impl<ExtraData> Node<ExtraData> {
     }
 }
 
+pub mod simple {
+    pub type Node = super::Node<()>;
+    pub type Vert = super::Vert<()>;
+    pub type Edge = super::Edge<()>;
+    pub type Face = super::Face<()>;
+    pub type Mesh = super::Mesh<(), (), (), ()>;
+}
+
 fn _add_as_set<T>(vec: &mut Vec<T>, val: T)
 where
     T: PartialEq,
@@ -649,7 +651,7 @@ mod tests {
     #[test]
     fn mesh_read_test() {
         // TODO(ish): add more comprehensive relation tests
-        let mut mesh = SimpleMesh::new();
+        let mut mesh = simple::Mesh::new();
         mesh.read(&Path::new("tests/obj_test_01.obj")).unwrap();
         assert_eq!(mesh.faces.len(), 2);
         for (_, face) in &mesh.faces {
@@ -676,7 +678,7 @@ mod tests {
 
     #[test]
     fn mesh_no_uv() {
-        let mut mesh = SimpleMesh::new();
+        let mut mesh = simple::Mesh::new();
         match mesh.read(&Path::new("tests/obj_test_05_square_no_uv.obj")) {
             Err(err) => match err {
                 MeshError::NoUV => (),
