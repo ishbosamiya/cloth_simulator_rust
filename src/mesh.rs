@@ -17,11 +17,11 @@ use crate::shader::Shader;
 /// (commonly referred to as Vertex Normals)
 ///
 /// Each Node can be referred to by many Verts
-pub struct Node<ExtraData> {
+pub struct Node<T> {
     self_index: NodeIndex,
     pub pos: glm::DVec3,
     pub normal: Option<glm::DVec3>,
-    pub extra_data: Option<ExtraData>,
+    pub extra_data: Option<T>,
 
     verts: IncidentVerts,
 }
@@ -31,10 +31,10 @@ pub struct Node<ExtraData> {
 /// A Vert can only have one Node but this Node can be shared by many Verts
 ///
 /// Each Vert can be referred to by many Edges
-pub struct Vert<ExtraData> {
+pub struct Vert<T> {
     self_index: VertIndex,
     pub uv: Option<glm::DVec2>,
-    pub extra_data: Option<ExtraData>,
+    pub extra_data: Option<T>,
 
     node: Option<NodeIndex>,
     edges: IncidentEdges,
@@ -44,9 +44,9 @@ pub struct Vert<ExtraData> {
 ///
 /// Each Edge has a pair of Verts (Made as Option because it may not
 /// have this information when it first is created)
-pub struct Edge<ExtraData> {
+pub struct Edge<T> {
     self_index: EdgeIndex,
-    pub extra_data: Option<ExtraData>,
+    pub extra_data: Option<T>,
 
     verts: Option<(VertIndex, VertIndex)>,
     faces: IncidentFaces,
@@ -55,10 +55,10 @@ pub struct Edge<ExtraData> {
 /// Face stores the vertices in order that form that face, this is done instead of storing edges to prevent winding/orientation problems with the mesh.
 ///
 /// Each Face also stores the face normal optionally
-pub struct Face<ExtraData> {
+pub struct Face<T> {
     self_index: FaceIndex,
     pub normal: Option<glm::DVec3>,
-    pub extra_data: Option<ExtraData>,
+    pub extra_data: Option<T>,
 
     verts: AdjacentVerts,
 }
@@ -66,11 +66,11 @@ pub struct Face<ExtraData> {
 /// Mesh stores the Node, Vert, Edge, Face data in an Arena
 ///
 /// Mesh optionally stores a renderable mesh, GLMesh
-pub struct Mesh<ExtraNodeData, ExtraVertData, ExtraEdgeData, ExtraFaceData> {
-    nodes: Arena<Node<ExtraNodeData>>,
-    verts: Arena<Vert<ExtraVertData>>,
-    edges: Arena<Edge<ExtraEdgeData>>,
-    faces: Arena<Face<ExtraFaceData>>,
+pub struct Mesh<END, EVD, EED, EFD> {
+    nodes: Arena<Node<END>>,
+    verts: Arena<Vert<EVD>>,
+    edges: Arena<Edge<EED>>,
+    faces: Arena<Face<EFD>>,
 
     gl_mesh: Option<GLMesh>,
 }
@@ -528,8 +528,8 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
     }
 }
 
-impl<ExtraData> Face<ExtraData> {
-    pub fn new(self_index: FaceIndex) -> Face<ExtraData> {
+impl<T> Face<T> {
+    pub fn new(self_index: FaceIndex) -> Face<T> {
         return Face {
             self_index,
             normal: None,
@@ -540,8 +540,8 @@ impl<ExtraData> Face<ExtraData> {
     }
 }
 
-impl<ExtraData> Edge<ExtraData> {
-    pub fn new(self_index: EdgeIndex) -> Edge<ExtraData> {
+impl<T> Edge<T> {
+    pub fn new(self_index: EdgeIndex) -> Edge<T> {
         return Edge {
             self_index,
             extra_data: None,
@@ -597,8 +597,8 @@ impl<ExtraData> Edge<ExtraData> {
     }
 }
 
-impl<ExtraData> Vert<ExtraData> {
-    pub fn new(self_index: VertIndex) -> Vert<ExtraData> {
+impl<T> Vert<T> {
+    pub fn new(self_index: VertIndex) -> Vert<T> {
         return Vert {
             self_index,
             uv: None,
@@ -610,8 +610,8 @@ impl<ExtraData> Vert<ExtraData> {
     }
 }
 
-impl<ExtraData> Node<ExtraData> {
-    pub fn new(self_index: NodeIndex, pos: glm::DVec3) -> Node<ExtraData> {
+impl<T> Node<T> {
+    pub fn new(self_index: NodeIndex, pos: glm::DVec3) -> Node<T> {
         return Node {
             self_index,
             pos,
