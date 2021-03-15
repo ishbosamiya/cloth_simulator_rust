@@ -1,6 +1,7 @@
 use nalgebra_glm as glm;
 
-use crate::eigen::{SimplicialLLT, SparseMatrix, VecX};
+use crate::eigen;
+use eigen::{SimplicialLLT, SparseMatrix, VecX};
 
 pub mod cloth {
     use super::*;
@@ -33,10 +34,11 @@ pub struct Simulation {
     prefactored_solver: SimplicialLLT,
     l: SparseMatrix,
     j: SparseMatrix,
+    spring_stiffness: f64,
 }
 
 impl Simulation {
-    pub fn new(cloth: cloth::Mesh, time_step: f64) -> Self {
+    pub fn new(cloth: cloth::Mesh, time_step: f64, spring_stiffness: f64) -> Self {
         // TODO(ish): initialize mass_matrix, d appropriately
         return Self {
             cloth,
@@ -46,6 +48,7 @@ impl Simulation {
             prefactored_solver: SimplicialLLT::new(),
             l: SparseMatrix::new(),
             j: SparseMatrix::new(),
+            spring_stiffness,
         };
     }
 
@@ -79,8 +82,58 @@ impl Simulation {
         return &self.mass_matrix * &f;
     }
 
-    /// TODO(ish)
-    fn compute_l(&mut self) {}
+    fn compute_l(&mut self) {
+        assert_eq!(
+            self.cloth.get_nodes().capacity(),
+            self.cloth.get_nodes().len()
+        ); // TODO(ish): make sure that there isn't an element within nodes that isn't assigned to a value
+        let num_nodes = self.cloth.get_nodes().len();
+        self.l.resize(3 * num_nodes, 3 * num_nodes);
+
+        let mut l_triplets = Vec::new();
+
+        for (_, edge) in self.cloth.get_edges().iter() {
+            let edge_verts = edge.get_verts().unwrap();
+            let vert_1 = self.cloth.get_vert(edge_verts.0).unwrap();
+            let vert_2 = self.cloth.get_vert(edge_verts.1).unwrap();
+            let node_1_index = generational_arena::Index::from(vert_1.get_node_index().unwrap())
+                .into_raw_parts()
+                .0;
+            let node_2_index = generational_arena::Index::from(vert_2.get_node_index().unwrap())
+                .into_raw_parts()
+                .0;
+
+            triplet_3_push(
+                &mut l_triplets,
+                node_1_index,
+                node_1_index,
+                self.spring_stiffness,
+            );
+
+            triplet_3_push(
+                &mut l_triplets,
+                node_2_index,
+                node_2_index,
+                self.spring_stiffness,
+            );
+
+            triplet_3_push(
+                &mut l_triplets,
+                node_1_index,
+                node_2_index,
+                -self.spring_stiffness,
+            );
+
+            triplet_3_push(
+                &mut l_triplets,
+                node_2_index,
+                node_1_index,
+                -self.spring_stiffness,
+            );
+        }
+
+        self.l.set_from_triplets(&l_triplets);
+    }
 
     /// TODO(ish)
     fn compute_j(&mut self) {}
@@ -195,4 +248,10 @@ impl VecX {
             data[3 * index + 2],
         );
     }
+}
+
+fn triplet_3_push(triplets: &mut Vec<eigen::Triplet>, i1: usize, i2: usize, value: f64) {
+    triplets.push(eigen::Triplet::new(3 * i1 + 0, 3 * i2 + 0, value));
+    triplets.push(eigen::Triplet::new(3 * i1 + 1, 3 * i2 + 1, value));
+    triplets.push(eigen::Triplet::new(3 * i1 + 2, 3 * i2 + 2, value));
 }
