@@ -30,7 +30,9 @@ pub struct Simulation {
     mass_matrix: SparseMatrix,
     time_step: f64,
     d: VecX,
-    prefactored_mat: SimplicialLLT,
+    prefactored_solver: SimplicialLLT,
+    l: SparseMatrix,
+    j: SparseMatrix,
 }
 
 impl Simulation {
@@ -41,18 +43,25 @@ impl Simulation {
             mass_matrix: SparseMatrix::new(),
             time_step,
             d: VecX::new(),
-            prefactored_mat: SimplicialLLT::new(),
+            prefactored_solver: SimplicialLLT::new(),
+            l: SparseMatrix::new(),
+            j: SparseMatrix::new(),
         };
     }
 
     /// TODO(ish)
-    fn get_l(&self) -> SparseMatrix {
-        return SparseMatrix::new();
+    fn get_l(&self) -> &SparseMatrix {
+        return &self.l;
     }
 
     /// TODO(ish)
-    fn get_j(&self) -> SparseMatrix {
-        return SparseMatrix::new();
+    fn get_j(&self) -> &SparseMatrix {
+        return &self.j;
+    }
+
+    /// TODO(ish)
+    fn get_y(&self) -> VecX {
+        return VecX::new();
     }
 
     /// TODO(ish)
@@ -61,13 +70,40 @@ impl Simulation {
     }
 
     /// TODO(ish)
-    fn get_prefactored_system_matrix(&self) -> &SimplicialLLT {
-        return &self.prefactored_mat;
-    }
+    fn compute_l(&mut self) {}
 
     /// TODO(ish)
+    fn compute_j(&mut self) {}
+
+    /// Gets the system matrix (M + h*h*L) and prefactorizes the solver with it
+    /// Also precomputes L and J matrices
+    fn prefactorize_and_precompute(&mut self) {
+        // Precompute
+        self.compute_l();
+        self.compute_j();
+
+        // Prefactorize
+        // TODO(ish): Might have to add some regularization component
+        let system_matrix = &self.mass_matrix + &(self.time_step * self.time_step * self.get_l());
+        self.prefactored_solver.analyze_pattern(&system_matrix);
+        self.prefactored_solver.factorize(&system_matrix);
+    }
+
+    fn get_prefactored_system_matrix_solver(&self) -> &SimplicialLLT {
+        return &self.prefactored_solver;
+    }
+
+    /// Returns the rhs for the global step solve
     fn get_rhs(&self) -> VecX {
-        return VecX::new();
+        let m = &self.mass_matrix;
+        let y = &self.get_y();
+        let h = &self.time_step;
+        let j = self.get_j();
+        let d = &self.d;
+        let f_ext = &self.get_external_forces();
+
+        // M*y + h*h*J*d + h*h*f_ext
+        return &(m * y) + &(h * h * &(&(j * d) + f_ext));
     }
 
     /// Solves for the vector d from the paper
@@ -95,6 +131,10 @@ impl Simulation {
 
     pub fn next_step(&mut self, num_iterations: usize) {
         // TODO(ish): set initial guess (y)
+        // TODO(ish): might be able to optimize by running
+        // prefactorize_and_precompute only if the system configuration
+        // has changed, eg: change in mesh connectivity
+        self.prefactorize_and_precompute();
         for _ in 0..num_iterations {
             self.solver_local_step();
             self.solver_global_step();
@@ -107,12 +147,20 @@ impl Simulation {
 
     fn solver_global_step(&mut self) {
         let rhs = self.get_rhs();
-        let x = self.get_prefactored_system_matrix().solve(&rhs);
+        let x = self.get_prefactored_system_matrix_solver().solve(&rhs);
         self.set_cloth_info_from_x(&x);
     }
 
-    /// TODO(ish)
-    fn set_cloth_info_from_x(&mut self, x: &VecX) {}
+    /// Store the solved position data into the cloth nodes
+    fn set_cloth_info_from_x(&mut self, x: &VecX) {
+        // Set the previous pos to current pos and set current pos to x
+        assert_eq!(x.size(), 3 * self.cloth.get_nodes().len());
+        for (i, (_, node)) in self.cloth.get_nodes_mut().iter_mut().enumerate() {
+            let pos = x.get_v3_glm(i);
+            node.extra_data.as_mut().unwrap().prev_pos = node.pos;
+            node.pos = pos;
+        }
+    }
 
     fn get_num_springs(&self) -> usize {
         return self.cloth.get_edges().len();
@@ -123,8 +171,18 @@ impl VecX {
     #[inline]
     fn set_v3_glm(&mut self, index: usize, val: &glm::DVec3) {
         let data = self.data_mut();
-        data[index + 0] = val[0];
-        data[index + 1] = val[1];
-        data[index + 2] = val[2];
+        data[3 * index + 0] = val[0];
+        data[3 * index + 1] = val[1];
+        data[3 * index + 2] = val[2];
+    }
+
+    #[inline]
+    fn get_v3_glm(&self, index: usize) -> glm::DVec3 {
+        let data = self.data();
+        return glm::vec3(
+            data[3 * index + 0],
+            data[3 * index + 1],
+            data[3 * index + 2],
+        );
     }
 }

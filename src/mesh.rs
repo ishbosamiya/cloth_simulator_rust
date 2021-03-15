@@ -169,6 +169,22 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         return &self.nodes;
     }
 
+    pub fn get_faces_mut(&mut self) -> &mut Arena<Face<EFD>> {
+        return &mut self.faces;
+    }
+
+    pub fn get_edges_mut(&mut self) -> &mut Arena<Edge<EED>> {
+        return &mut self.edges;
+    }
+
+    pub fn get_verts_mut(&mut self) -> &mut Arena<Vert<EVD>> {
+        return &mut self.verts;
+    }
+
+    pub fn get_nodes_mut(&mut self) -> &mut Arena<Node<END>> {
+        return &mut self.nodes;
+    }
+
     pub fn get_face(&self, index: FaceIndex) -> Option<&Face<EFD>> {
         return self.faces.get(index.0);
     }
