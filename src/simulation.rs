@@ -69,9 +69,14 @@ impl Simulation {
         return y;
     }
 
-    /// TODO(ish)
+    /// Gives f_ext, the external force on each node of the mesh
     fn get_external_forces(&self) -> VecX {
-        return VecX::new();
+        let mut f = VecX::new_with_size(3 * self.cloth.get_nodes().len());
+        for i in 0..self.cloth.get_nodes().len() {
+            // Currently limited to gravity
+            f.set_v3_glm(i, &glm::make_vec3(&[0.0, -9.8, 0.0]));
+        }
+        return &self.mass_matrix * &f;
     }
 
     /// TODO(ish)
