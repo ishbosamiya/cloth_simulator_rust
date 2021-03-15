@@ -135,8 +135,52 @@ impl Simulation {
         self.l.set_from_triplets(&l_triplets);
     }
 
-    /// TODO(ish)
-    fn compute_j(&mut self) {}
+    fn compute_j(&mut self) {
+        assert_eq!(
+            self.cloth.get_edges().capacity(),
+            self.cloth.get_edges().len()
+        );
+        assert_eq!(
+            self.cloth.get_nodes().capacity(),
+            self.cloth.get_nodes().len()
+        ); // TODO(ish): make sure that there isn't an element within nodes that isn't assigned to a value
+        let num_nodes = self.cloth.get_nodes().len();
+        let num_edges = self.cloth.get_edges().len();
+        self.j.resize(3 * num_nodes, 3 * num_edges);
+
+        let mut j_triplets = Vec::new();
+
+        for (edge_index, edge) in self.cloth.get_edges().iter() {
+            let edge_index = generational_arena::Index::from(edge_index)
+                .into_raw_parts()
+                .0;
+            let edge_verts = edge.get_verts().unwrap();
+            let vert_1 = self.cloth.get_vert(edge_verts.0).unwrap();
+            let vert_2 = self.cloth.get_vert(edge_verts.1).unwrap();
+            let node_1_index = generational_arena::Index::from(vert_1.get_node_index().unwrap())
+                .into_raw_parts()
+                .0;
+            let node_2_index = generational_arena::Index::from(vert_2.get_node_index().unwrap())
+                .into_raw_parts()
+                .0;
+
+            triplet_3_push(
+                &mut j_triplets,
+                node_1_index,
+                edge_index,
+                self.spring_stiffness,
+            );
+
+            triplet_3_push(
+                &mut j_triplets,
+                node_2_index,
+                edge_index,
+                -self.spring_stiffness,
+            );
+        }
+
+        self.j.set_from_triplets(&j_triplets);
+    }
 
     /// Gets the system matrix (M + h*h*L) and prefactorizes the solver with it
     /// Also precomputes L and J matrices
