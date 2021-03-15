@@ -1,6 +1,6 @@
 use nalgebra_glm as glm;
 
-use crate::eigen::{SparseMatrix, VecX};
+use crate::eigen::{SimplicialLLT, SparseMatrix, VecX};
 
 pub mod cloth {
     use super::*;
@@ -30,6 +30,7 @@ pub struct Simulation {
     mass_matrix: SparseMatrix,
     time_step: f64,
     d: VecX,
+    prefactored_mat: SimplicialLLT,
 }
 
 impl Simulation {
@@ -40,6 +41,7 @@ impl Simulation {
             mass_matrix: SparseMatrix::new(),
             time_step,
             d: VecX::new(),
+            prefactored_mat: SimplicialLLT::new(),
         };
     }
 
@@ -55,6 +57,16 @@ impl Simulation {
 
     /// TODO(ish)
     fn get_external_forces(&self) -> VecX {
+        return VecX::new();
+    }
+
+    /// TODO(ish)
+    fn get_prefactored_system_matrix(&self) -> &SimplicialLLT {
+        return &self.prefactored_mat;
+    }
+
+    /// TODO(ish)
+    fn get_rhs(&self) -> VecX {
         return VecX::new();
     }
 
@@ -81,11 +93,26 @@ impl Simulation {
         }
     }
 
-    pub fn next_step(&self) {}
+    pub fn next_step(&mut self, num_iterations: usize) {
+        // TODO(ish): set initial guess (y)
+        for _ in 0..num_iterations {
+            self.solver_local_step();
+            self.solver_global_step();
+        }
+    }
 
     fn solver_local_step(&mut self) {
         self.solve_d();
     }
+
+    fn solver_global_step(&mut self) {
+        let rhs = self.get_rhs();
+        let x = self.get_prefactored_system_matrix().solve(&rhs);
+        self.set_cloth_info_from_x(&x);
+    }
+
+    /// TODO(ish)
+    fn set_cloth_info_from_x(&mut self, x: &VecX) {}
 
     fn get_num_springs(&self) -> usize {
         return self.cloth.get_edges().len();
