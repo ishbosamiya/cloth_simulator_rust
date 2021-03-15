@@ -49,19 +49,24 @@ impl Simulation {
         };
     }
 
-    /// TODO(ish)
     fn get_l(&self) -> &SparseMatrix {
         return &self.l;
     }
 
-    /// TODO(ish)
     fn get_j(&self) -> &SparseMatrix {
         return &self.j;
     }
 
-    /// TODO(ish)
     fn get_y(&self) -> VecX {
-        return VecX::new();
+        // TODO(ish): need to cache this info
+        let mut y = VecX::new_with_size(3 * self.cloth.get_nodes().len());
+        for (i, (_, node)) in self.cloth.get_nodes().iter().enumerate() {
+            // y = 2*q_n - q_(n-1)
+            let y_i = &(2.0 * &node.pos) - &node.extra_data.as_ref().unwrap().prev_pos;
+            y.set_v3_glm(i, &y_i);
+        }
+
+        return y;
     }
 
     /// TODO(ish)
