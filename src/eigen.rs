@@ -559,7 +559,7 @@ impl SimplicialLLT {
         }
     }
 
-    pub fn compute(&self, mat: &SparseMatrix) {
+    pub fn compute(&mut self, mat: &SparseMatrix) {
         unsafe {
             cpp!([self as "SimplicialLLT", mat as "const SparseMatrix*"] {
                 self->compute(*mat);
@@ -575,7 +575,7 @@ impl SimplicialLLT {
         }
     }
 
-    pub fn factorize(&self, mat: &SparseMatrix) {
+    pub fn factorize(&mut self, mat: &SparseMatrix) {
         unsafe {
             cpp!([self as "SimplicialLLT", mat as "const SparseMatrix*"] {
                 self->factorize(*mat);
