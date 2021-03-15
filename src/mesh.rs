@@ -88,6 +88,30 @@ pub struct EdgeIndex(Index);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FaceIndex(Index);
 
+impl From<NodeIndex> for generational_arena::Index {
+    fn from(val: NodeIndex) -> generational_arena::Index {
+        return val.0;
+    }
+}
+
+impl From<VertIndex> for generational_arena::Index {
+    fn from(val: VertIndex) -> generational_arena::Index {
+        return val.0;
+    }
+}
+
+impl From<EdgeIndex> for generational_arena::Index {
+    fn from(val: EdgeIndex) -> generational_arena::Index {
+        return val.0;
+    }
+}
+
+impl From<FaceIndex> for generational_arena::Index {
+    fn from(val: FaceIndex) -> generational_arena::Index {
+        return val.0;
+    }
+}
+
 type IncidentVerts = Vec<VertIndex>;
 type IncidentEdges = Vec<EdgeIndex>;
 type IncidentFaces = Vec<FaceIndex>;
@@ -131,6 +155,34 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
 
     pub fn get_faces(&self) -> &Arena<Face<EFD>> {
         return &self.faces;
+    }
+
+    pub fn get_edges(&self) -> &Arena<Edge<EED>> {
+        return &self.edges;
+    }
+
+    pub fn get_verts(&self) -> &Arena<Vert<EVD>> {
+        return &self.verts;
+    }
+
+    pub fn get_nodes(&self) -> &Arena<Node<END>> {
+        return &self.nodes;
+    }
+
+    pub fn get_face(&self, index: FaceIndex) -> Option<&Face<EFD>> {
+        return self.faces.get(index.0);
+    }
+
+    pub fn get_edge(&self, index: EdgeIndex) -> Option<&Edge<EED>> {
+        return self.edges.get(index.0);
+    }
+
+    pub fn get_vert(&self, index: VertIndex) -> Option<&Vert<EVD>> {
+        return self.verts.get(index.0);
+    }
+
+    pub fn get_node(&self, index: NodeIndex) -> Option<&Node<END>> {
+        return self.nodes.get(index.0);
     }
 
     /// Adds an empty Node and gives back mutable reference to it
@@ -551,6 +603,10 @@ impl<T> Edge<T> {
         };
     }
 
+    pub fn get_verts(&self) -> &Option<(VertIndex, VertIndex)> {
+        return &self.verts;
+    }
+
     /// Checks if self has the vert specified via VertIndex
     pub fn has_vert(&self, vert_index: VertIndex) -> bool {
         match self.verts {
@@ -607,6 +663,10 @@ impl<T> Vert<T> {
             node: None,
             edges: Vec::new(),
         };
+    }
+
+    pub fn get_node_index(&self) -> Option<NodeIndex> {
+        return self.node;
     }
 }
 
