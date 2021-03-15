@@ -28,7 +28,8 @@ pub mod cloth {
 
 pub struct Simulation {
     cloth: cloth::Mesh,
-    mass_matrix: SparseMatrix,
+    cloth_mass: f64,
+    mass_matrix: Option<SparseMatrix>,
     time_step: f64,
     d: VecX,
     prefactored_solver: SimplicialLLT,
@@ -38,11 +39,11 @@ pub struct Simulation {
 }
 
 impl Simulation {
-    pub fn new(cloth: cloth::Mesh, time_step: f64, spring_stiffness: f64) -> Self {
-        // TODO(ish): initialize mass_matrix, d appropriately
+    pub fn new(cloth: cloth::Mesh, cloth_mass: f64, time_step: f64, spring_stiffness: f64) -> Self {
         return Self {
             cloth,
-            mass_matrix: SparseMatrix::new(),
+            cloth_mass,
+            mass_matrix: None,
             time_step,
             d: VecX::new(),
             prefactored_solver: SimplicialLLT::new(),
@@ -50,6 +51,25 @@ impl Simulation {
             j: SparseMatrix::new(),
             spring_stiffness,
         };
+    }
+
+    /// Panics if mass_matrix is not initialized
+    fn get_mass_matrix(&self) -> &SparseMatrix {
+        return &self.mass_matrix.as_ref().unwrap();
+    }
+
+    fn compute_mass_matrix(&mut self) {
+        let num_nodes = self.cloth.get_nodes().len();
+        let mass = self.cloth_mass / num_nodes as f64;
+        let mass_matrix = self.mass_matrix.as_mut().unwrap();
+        mass_matrix.resize(3 * num_nodes, 3 * num_nodes);
+
+        let mut triplets = Vec::new();
+        for i in 0..(3 * num_nodes) {
+            triplets.push(eigen::Triplet::new(i, i, mass));
+        }
+
+        mass_matrix.set_from_triplets(&triplets);
     }
 
     fn get_l(&self) -> &SparseMatrix {
@@ -61,7 +81,6 @@ impl Simulation {
     }
 
     fn get_y(&self) -> VecX {
-        // TODO(ish): need to cache this info
         let mut y = VecX::new_with_size(3 * self.cloth.get_nodes().len());
         for (i, (_, node)) in self.cloth.get_nodes().iter().enumerate() {
             // y = 2*q_n - q_(n-1)
@@ -79,7 +98,7 @@ impl Simulation {
             // Currently limited to gravity
             f.set_v3_glm(i, &glm::make_vec3(&[0.0, -9.8, 0.0]));
         }
-        return &self.mass_matrix * &f;
+        return self.get_mass_matrix() * &f;
     }
 
     fn compute_l(&mut self) {
@@ -191,7 +210,8 @@ impl Simulation {
 
         // Prefactorize
         // TODO(ish): Might have to add some regularization component
-        let system_matrix = &self.mass_matrix + &(self.time_step * self.time_step * self.get_l());
+        let system_matrix =
+            self.get_mass_matrix() + &(self.time_step * self.time_step * self.get_l());
         self.prefactored_solver.analyze_pattern(&system_matrix);
         self.prefactored_solver.factorize(&system_matrix);
     }
@@ -202,7 +222,7 @@ impl Simulation {
 
     /// Returns the rhs for the global step solve
     fn get_rhs(&self) -> VecX {
-        let m = &self.mass_matrix;
+        let m = self.get_mass_matrix();
         let y = &self.get_y();
         let h = &self.time_step;
         let j = self.get_j();
@@ -216,7 +236,7 @@ impl Simulation {
     /// Solves for the vector d from the paper
     /// Currently supports only direct edges as springs, will need to add better contraints later
     fn solve_d(&mut self) {
-        assert_eq!(self.d.size(), 3 * self.get_num_springs());
+        self.d.resize(3 * self.get_num_springs());
         for (i, (_, edge)) in self.cloth.get_edges().iter().enumerate() {
             let edge_verts = edge.get_verts().unwrap();
             let vert_1 = self.cloth.get_vert(edge_verts.0).unwrap();
@@ -237,7 +257,15 @@ impl Simulation {
     }
 
     pub fn next_step(&mut self, num_iterations: usize) {
-        // TODO(ish): set initial guess (y)
+        // TODO(ish): this can be optimized if the mesh structure
+        // doesn't change between previous step and current step
+        self.compute_mass_matrix();
+
+        // TODO(ish): this can be optimized, instead of transforming
+        // to y and then back, can do it in place with on single
+        // iteration
+        self.set_cloth_info_from_x(&self.get_y());
+
         // TODO(ish): might be able to optimize by running
         // prefactorize_and_precompute only if the system configuration
         // has changed, eg: change in mesh connectivity
