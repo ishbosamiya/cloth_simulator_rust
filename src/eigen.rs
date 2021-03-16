@@ -7,13 +7,14 @@ cpp! {{
     #include <Eigen/Dense>
     #include <Eigen/Sparse>
     #include <memory>
+    #include <iostream>
     typedef double Scalar;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatX;
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> VecX;
     typedef Eigen::SparseMatrix<Scalar> SparseMatrix;
     typedef Eigen::Triplet<Scalar> Triplet;
     typedef Eigen::SimplicialLLT<SparseMatrix, Eigen::Upper> SimplicialLLT_;
-    typedef std::unique_ptr<SimplicialLLT_> SimplicialLLT;
+    typedef std::shared_ptr<SimplicialLLT_> SimplicialLLT;
     typedef Eigen::Index Index;
 }}
 
@@ -546,39 +547,39 @@ impl SimplicialLLT {
     pub fn new() -> Self {
         unsafe {
             cpp!([] -> SimplicialLLT as "SimplicialLLT" {
-                return std::unique_ptr<SimplicialLLT_>(new SimplicialLLT_);
+                return std::shared_ptr<SimplicialLLT_>(new SimplicialLLT_);
             })
         }
     }
 
     pub fn analyze_pattern(&mut self, mat: &SparseMatrix) {
         unsafe {
-            cpp!([self as "SimplicialLLT", mat as "const SparseMatrix*"] {
-                self->analyzePattern(*mat);
+            cpp!([self as "SimplicialLLT*", mat as "const SparseMatrix*"] {
+                self->get()->analyzePattern(*mat);
             })
         }
     }
 
     pub fn compute(&mut self, mat: &SparseMatrix) {
         unsafe {
-            cpp!([self as "SimplicialLLT", mat as "const SparseMatrix*"] {
-                self->compute(*mat);
+            cpp!([self as "SimplicialLLT*", mat as "const SparseMatrix*"] {
+                self->get()->compute(*mat);
             })
         }
     }
 
     pub fn determinant(&self) -> Scalar {
         unsafe {
-            cpp!([self as "SimplicialLLT"] -> Scalar as "Scalar" {
-                return self->determinant();
+            cpp!([self as "SimplicialLLT*"] -> Scalar as "Scalar" {
+                return self->get()->determinant();
             })
         }
     }
 
     pub fn factorize(&mut self, mat: &SparseMatrix) {
         unsafe {
-            cpp!([self as "SimplicialLLT", mat as "const SparseMatrix*"] {
-                self->factorize(*mat);
+            cpp!([self as "SimplicialLLT*", mat as "const SparseMatrix*"] {
+                self->get()->factorize(*mat);
             })
         }
     }
@@ -586,8 +587,8 @@ impl SimplicialLLT {
     pub fn info(&self) -> ComputationInfo {
         let value;
         unsafe {
-            value = cpp!([self as "SimplicialLLT"] -> i32 as "int32_t" {
-                auto info = self->info();
+            value = cpp!([self as "SimplicialLLT*"] -> i32 as "int32_t" {
+                auto info = self->get()->info();
                 if (info == Eigen::Success) {
                     return 1;
                 }
@@ -608,8 +609,8 @@ impl SimplicialLLT {
     /// Solves matrix equation Ax=b
     pub fn solve(&self, b: &VecX) -> VecX {
         unsafe {
-            cpp!([self as "SimplicialLLT", b as "const VecX*"] -> VecX as "VecX" {
-                return self->solve(*b);
+            cpp!([self as "SimplicialLLT*", b as "const VecX*"] -> VecX as "VecX" {
+                return self->get()->solve(*b);
             })
         }
     }
@@ -726,6 +727,14 @@ impl SparseMatrix {
         unsafe {
             cpp!([self as "SparseMatrix*", triplets_ptr as "const Triplet*", triplets_len as "Index"]{
                 return self->setFromTriplets(triplets_ptr, triplets_ptr + triplets_len);
+            })
+        }
+    }
+
+    pub fn print(&self) {
+        unsafe {
+            cpp!([self as "const SparseMatrix*"] {
+                std::cout << MatX(*self) << std::endl;
             })
         }
     }
