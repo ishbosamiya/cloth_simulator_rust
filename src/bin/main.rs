@@ -108,10 +108,11 @@ fn main() {
 
     let mut cloth = cloth::Mesh::new();
     cloth
-        .read(std::path::Path::new("models/plane_subd_01.obj"))
+        .read(std::path::Path::new("models/plane_subd_02.obj"))
         .unwrap();
     cloth.setup();
-    let mut simulation = Simulation::new(cloth, 1.0, 1.0 / 30.0, 10000.0);
+    let mut simulation = Simulation::new(cloth, 1.0, 1.0 / 30.0, 800.0);
+    let mut run_sim = false;
 
     let mut imm = GPUImmediate::new();
 
@@ -126,8 +127,8 @@ fn main() {
                 window.clone(),
                 event,
                 &mut camera,
-                &mut simulation,
                 &mut last_cursor,
+                &mut run_sim,
             );
         }
 
@@ -180,6 +181,10 @@ fn main() {
         // face_orientation_shader.use_shader();
         // mesh.generate_gl_mesh(false);
 
+        if run_sim {
+            simulation.next_step(10);
+        }
+
         let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
         // let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
         mesh.draw(&mut draw_data).unwrap();
@@ -195,8 +200,8 @@ fn handle_window_event(
     window: Rc<RefCell<glfw::Window>>,
     event: glfw::WindowEvent,
     camera: &mut WindowCamera,
-    simulation: &mut Simulation,
     last_cursor: &mut (f64, f64),
+    r_run_sim: &mut bool,
 ) {
     let cursor = window.borrow_mut().get_cursor_pos();
     match event {
@@ -207,7 +212,7 @@ fn handle_window_event(
             gl::ClearColor(random(), random(), random(), 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         },
-        glfw::WindowEvent::Key(Key::S, _, Action::Press, _) => simulation.next_step(10),
+        glfw::WindowEvent::Key(Key::S, _, Action::Press, _) => *r_run_sim = !*r_run_sim,
         glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
             gl::Viewport(0, 0, width, height);
         },

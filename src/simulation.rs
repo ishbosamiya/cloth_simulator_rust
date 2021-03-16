@@ -317,6 +317,9 @@ impl Simulation {
         // Set the previous pos to current pos and set current pos to x
         assert_eq!(x.size(), 3 * self.cloth.get_nodes().len());
         for (i, (_, node)) in self.cloth.get_nodes_mut().iter_mut().enumerate() {
+            if i == 0 {
+                continue;
+            }
             let pos = x.get_v3_glm(i);
             node.extra_data.as_mut().unwrap().prev_pos = node.pos;
             node.pos = pos;
