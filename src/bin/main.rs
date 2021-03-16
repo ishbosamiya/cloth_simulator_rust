@@ -13,6 +13,7 @@ use cloth_simulator_rust::drawable::Drawable;
 use cloth_simulator_rust::gpu_immediate::*;
 use cloth_simulator_rust::mesh::{simple::Mesh, MeshDrawData};
 use cloth_simulator_rust::shader::Shader;
+use cloth_simulator_rust::simulation::{cloth, Simulation};
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -105,6 +106,13 @@ fn main() {
         45.0,
     );
 
+    let mut cloth = cloth::Mesh::new();
+    cloth
+        .read(std::path::Path::new("models/plane_subd_01.obj"))
+        .unwrap();
+    cloth.setup();
+    let mut simulation = Simulation::new(cloth, 1.0, 1.0 / 30.0, 10000.0);
+
     let mut imm = GPUImmediate::new();
 
     let mut last_cursor = window.borrow().get_cursor_pos();
@@ -114,7 +122,13 @@ fn main() {
     while !window.borrow().should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
-            handle_window_event(window.clone(), event, &mut camera, &mut last_cursor);
+            handle_window_event(
+                window.clone(),
+                event,
+                &mut camera,
+                &mut simulation,
+                &mut last_cursor,
+            );
         }
 
         unsafe {
@@ -169,6 +183,7 @@ fn main() {
         let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
         // let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
         mesh.draw(&mut draw_data).unwrap();
+        simulation.cloth.draw(&mut draw_data).unwrap();
 
         window.borrow_mut().swap_buffers();
 
@@ -180,6 +195,7 @@ fn handle_window_event(
     window: Rc<RefCell<glfw::Window>>,
     event: glfw::WindowEvent,
     camera: &mut WindowCamera,
+    simulation: &mut Simulation,
     last_cursor: &mut (f64, f64),
 ) {
     let cursor = window.borrow_mut().get_cursor_pos();
@@ -191,6 +207,7 @@ fn handle_window_event(
             gl::ClearColor(random(), random(), random(), 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         },
+        glfw::WindowEvent::Key(Key::S, _, Action::Press, _) => simulation.next_step(10),
         glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
             gl::Viewport(0, 0, width, height);
         },

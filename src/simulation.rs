@@ -24,10 +24,35 @@ pub mod cloth {
     pub type Edge = mesh::Edge<ClothEdgeData>;
     pub type Face = mesh::Face<ClothFaceData>;
     pub type Mesh = mesh::Mesh<ClothNodeData, ClothVertData, ClothEdgeData, ClothFaceData>;
+
+    impl Mesh {
+        pub fn setup(&mut self) {
+            for (_, node) in self.get_nodes_mut() {
+                let extra_data = ClothNodeData { prev_pos: node.pos };
+                node.extra_data = Some(extra_data);
+            }
+            let mut edge_data = Vec::new();
+            for (_, edge) in self.get_edges().iter() {
+                let edge_verts = edge.get_verts().unwrap();
+                let vert_1 = self.get_vert(edge_verts.0).unwrap();
+                let vert_2 = self.get_vert(edge_verts.1).unwrap();
+                let node_1 = self.get_node(vert_1.get_node_index().unwrap()).unwrap();
+                let node_2 = self.get_node(vert_2.get_node_index().unwrap()).unwrap();
+                let len = glm::length(&(node_1.pos - node_2.pos));
+                let extra_data = ClothEdgeData { rest_len: len };
+
+                edge_data.push((extra_data, edge.get_self_index()));
+            }
+            for (extra_data, edge_index) in edge_data {
+                let edge = self.get_edge_mut(edge_index).unwrap();
+                edge.extra_data = Some(extra_data);
+            }
+        }
+    }
 }
 
 pub struct Simulation {
-    cloth: cloth::Mesh,
+    pub cloth: cloth::Mesh,
     cloth_mass: f64,
     mass_matrix: Option<SparseMatrix>,
     time_step: f64,
@@ -61,6 +86,7 @@ impl Simulation {
     fn compute_mass_matrix(&mut self) {
         let num_nodes = self.cloth.get_nodes().len();
         let mass = self.cloth_mass / num_nodes as f64;
+        self.mass_matrix = Some(SparseMatrix::new());
         let mass_matrix = self.mass_matrix.as_mut().unwrap();
         mass_matrix.resize(3 * num_nodes, 3 * num_nodes);
 
@@ -102,10 +128,10 @@ impl Simulation {
     }
 
     fn compute_l(&mut self) {
-        assert_eq!(
-            self.cloth.get_nodes().capacity(),
-            self.cloth.get_nodes().len()
-        ); // TODO(ish): make sure that there isn't an element within nodes that isn't assigned to a value
+        // assert_eq!(
+        //     self.cloth.get_nodes().capacity(),
+        //     self.cloth.get_nodes().len()
+        // ); // TODO(ish): make sure that there isn't an element within nodes that isn't assigned to a value
         let num_nodes = self.cloth.get_nodes().len();
         self.l.resize(3 * num_nodes, 3 * num_nodes);
 
@@ -155,14 +181,14 @@ impl Simulation {
     }
 
     fn compute_j(&mut self) {
-        assert_eq!(
-            self.cloth.get_edges().capacity(),
-            self.cloth.get_edges().len()
-        );
-        assert_eq!(
-            self.cloth.get_nodes().capacity(),
-            self.cloth.get_nodes().len()
-        ); // TODO(ish): make sure that there isn't an element within nodes that isn't assigned to a value
+        // assert_eq!(
+        //     self.cloth.get_edges().capacity(),
+        //     self.cloth.get_edges().len()
+        // );
+        // assert_eq!(
+        //     self.cloth.get_nodes().capacity(),
+        //     self.cloth.get_nodes().len()
+        // ); // TODO(ish): make sure that there isn't an element within nodes that isn't assigned to a value
         let num_nodes = self.cloth.get_nodes().len();
         let num_edges = self.cloth.get_edges().len();
         self.j.resize(3 * num_nodes, 3 * num_edges);

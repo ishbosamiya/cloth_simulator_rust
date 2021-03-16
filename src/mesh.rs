@@ -201,6 +201,22 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         return self.nodes.get(index.0);
     }
 
+    pub fn get_face_mut(&mut self, index: FaceIndex) -> Option<&mut Face<EFD>> {
+        return self.faces.get_mut(index.0);
+    }
+
+    pub fn get_edge_mut(&mut self, index: EdgeIndex) -> Option<&mut Edge<EED>> {
+        return self.edges.get_mut(index.0);
+    }
+
+    pub fn get_vert_mut(&mut self, index: VertIndex) -> Option<&mut Vert<EVD>> {
+        return self.verts.get_mut(index.0);
+    }
+
+    pub fn get_node_mut(&mut self, index: NodeIndex) -> Option<&mut Node<END>> {
+        return self.nodes.get_mut(index.0);
+    }
+
     /// Adds an empty Node and gives back mutable reference to it
     ///
     /// Use with caution
@@ -617,6 +633,10 @@ impl<T> Edge<T> {
             verts: None,
             faces: Vec::new(),
         };
+    }
+
+    pub fn get_self_index(&self) -> EdgeIndex {
+        return self.self_index;
     }
 
     pub fn get_verts(&self) -> &Option<(VertIndex, VertIndex)> {
