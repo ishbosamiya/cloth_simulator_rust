@@ -4,7 +4,6 @@ use crate::eigen;
 use crate::mesh;
 use eigen::{SimplicialLLT, SparseMatrix, VecX};
 
-// TODO(ish): contraints support, so not limited to just linear springs per edge
 // TODO(ish): BVH implementation
 // TODO(ish): adaptive remeshing support
 // TODO(ish): collision handling support
@@ -42,14 +41,20 @@ trait Constraint {
     fn compute_d(&self, mesh: &cloth::Mesh) -> glm::DVec3;
 }
 
-struct LinearSpringContraint {
+struct LinearSpringConstraint {
     spring_stiffness: f64,
     rest_len: f64,
     node_1_index: mesh::NodeIndex,
     node_2_index: mesh::NodeIndex,
 }
 
-impl LinearSpringContraint {
+struct PinSpringConstraint {
+    spring_stiffness: f64,
+    rest_pos: glm::DVec3,
+    node_index: mesh::NodeIndex,
+}
+
+impl LinearSpringConstraint {
     fn new(
         spring_stiffness: f64,
         rest_len: f64,
@@ -65,7 +70,17 @@ impl LinearSpringContraint {
     }
 }
 
-impl Constraint for LinearSpringContraint {
+impl PinSpringConstraint {
+    fn new(spring_stiffness: f64, rest_pos: glm::DVec3, node_index: mesh::NodeIndex) -> Self {
+        return Self {
+            spring_stiffness,
+            rest_pos,
+            node_index,
+        };
+    }
+}
+
+impl Constraint for LinearSpringConstraint {
     fn compute_l(&self, r_triplets: &mut Vec<eigen::Triplet>) {
         triplet_3_push(
             r_triplets,
@@ -120,26 +135,54 @@ impl Constraint for LinearSpringContraint {
     }
 }
 
+impl Constraint for PinSpringConstraint {
+    fn compute_l(&self, r_triplets: &mut Vec<eigen::Triplet>) {
+        triplet_3_push(
+            r_triplets,
+            self.node_index.get_index(),
+            self.node_index.get_index(),
+            self.spring_stiffness,
+        );
+    }
+
+    fn compute_j(&self, self_index: usize, r_triplets: &mut Vec<eigen::Triplet>) {
+        triplet_3_push(
+            r_triplets,
+            self.node_index.get_index(),
+            self_index,
+            self.spring_stiffness,
+        );
+    }
+
+    fn compute_d(&self, _cloth: &cloth::Mesh) -> glm::DVec3 {
+        return self.rest_pos;
+    }
+}
+
 enum ConstraintTypes {
-    LinearSpring(LinearSpringContraint),
+    LinearSpring(LinearSpringConstraint),
+    Pin(PinSpringConstraint),
 }
 
 impl Constraint for ConstraintTypes {
     fn compute_l(&self, r_triplets: &mut Vec<eigen::Triplet>) {
         match self {
             ConstraintTypes::LinearSpring(con) => con.compute_l(r_triplets),
+            ConstraintTypes::Pin(con) => con.compute_l(r_triplets),
         }
     }
 
     fn compute_j(&self, self_index: usize, r_triplets: &mut Vec<eigen::Triplet>) {
         match self {
             ConstraintTypes::LinearSpring(con) => con.compute_j(self_index, r_triplets),
+            ConstraintTypes::Pin(con) => con.compute_j(self_index, r_triplets),
         }
     }
 
     fn compute_d(&self, cloth: &cloth::Mesh) -> glm::DVec3 {
         match self {
             ConstraintTypes::LinearSpring(con) => con.compute_d(cloth),
+            ConstraintTypes::Pin(con) => con.compute_d(cloth),
         }
     }
 }
@@ -312,9 +355,19 @@ impl Simulation {
             let len = glm::length(&(node_1.pos - node_2.pos));
 
             let constraint =
-                LinearSpringContraint::new(self.spring_stiffness, len, node_1_index, node_2_index);
+                LinearSpringConstraint::new(self.spring_stiffness, len, node_1_index, node_2_index);
 
             constraints.push(ConstraintTypes::LinearSpring(constraint));
+        }
+
+        {
+            let (node, node_index) = self.cloth.get_nodes().get_unknown_gen(0).unwrap();
+            let pin = PinSpringConstraint::new(
+                self.spring_stiffness,
+                node.pos,
+                mesh::NodeIndex::from(node_index),
+            );
+            constraints.push(ConstraintTypes::Pin(pin));
         }
 
         self.constraints = constraints;
@@ -355,9 +408,6 @@ impl Simulation {
         // Set the previous pos to current pos and set current pos to x
         assert_eq!(x.size(), 3 * self.cloth.get_nodes().len());
         for (i, (_, node)) in self.cloth.get_nodes_mut().iter_mut().enumerate() {
-            if i == 0 {
-                continue;
-            }
             let pos = x.get_v3_glm(i);
             node.extra_data.as_mut().unwrap().prev_pos = node.pos;
             node.pos = pos;

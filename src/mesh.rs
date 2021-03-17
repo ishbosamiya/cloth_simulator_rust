@@ -88,6 +88,12 @@ pub struct EdgeIndex(Index);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FaceIndex(Index);
 
+impl From<generational_arena::Index> for NodeIndex {
+    fn from(val: generational_arena::Index) -> NodeIndex {
+        return NodeIndex(val);
+    }
+}
+
 impl From<NodeIndex> for generational_arena::Index {
     fn from(val: NodeIndex) -> generational_arena::Index {
         return val.0;
