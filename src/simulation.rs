@@ -365,7 +365,7 @@ impl Simulation {
             let pin = PinSpringConstraint::new(
                 self.spring_stiffness,
                 node.pos,
-                mesh::NodeIndex::from(node_index),
+                mesh::NodeIndex(node_index),
             );
             constraints.push(ConstraintTypes::Pin(pin));
         }
@@ -447,6 +447,6 @@ fn triplet_3_push(triplets: &mut Vec<eigen::Triplet>, i1: usize, i2: usize, valu
 
 impl mesh::NodeIndex {
     fn get_index(&self) -> usize {
-        return generational_arena::Index::from(*self).into_raw_parts().0;
+        return self.0.into_raw_parts().0;
     }
 }

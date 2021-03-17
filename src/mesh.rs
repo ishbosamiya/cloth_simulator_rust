@@ -77,46 +77,16 @@ pub struct Mesh<END, EVD, EED, EFD> {
 
 /// Index of Node in Mesh.nodes
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NodeIndex(Index);
+pub struct NodeIndex(pub Index);
 /// Index of Vert in Mesh.nodes
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VertIndex(Index);
+pub struct VertIndex(pub Index);
 /// Index of Edge in Mesh.nodes
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EdgeIndex(Index);
+pub struct EdgeIndex(pub Index);
 /// Index of Face in Mesh.nodes
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FaceIndex(Index);
-
-impl From<generational_arena::Index> for NodeIndex {
-    fn from(val: generational_arena::Index) -> NodeIndex {
-        return NodeIndex(val);
-    }
-}
-
-impl From<NodeIndex> for generational_arena::Index {
-    fn from(val: NodeIndex) -> generational_arena::Index {
-        return val.0;
-    }
-}
-
-impl From<VertIndex> for generational_arena::Index {
-    fn from(val: VertIndex) -> generational_arena::Index {
-        return val.0;
-    }
-}
-
-impl From<EdgeIndex> for generational_arena::Index {
-    fn from(val: EdgeIndex) -> generational_arena::Index {
-        return val.0;
-    }
-}
-
-impl From<FaceIndex> for generational_arena::Index {
-    fn from(val: FaceIndex) -> generational_arena::Index {
-        return val.0;
-    }
-}
+pub struct FaceIndex(pub Index);
 
 type IncidentVerts = Vec<VertIndex>;
 type IncidentEdges = Vec<EdgeIndex>;
