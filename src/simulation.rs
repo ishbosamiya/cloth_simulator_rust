@@ -1,6 +1,7 @@
 use nalgebra_glm as glm;
 
 use crate::eigen;
+use crate::mesh;
 use eigen::{SimplicialLLT, SparseMatrix, VecX};
 
 // TODO(ish): contraints support, so not limited to just linear springs per edge
@@ -10,7 +11,6 @@ use eigen::{SimplicialLLT, SparseMatrix, VecX};
 
 pub mod cloth {
     use super::*;
-    use crate::mesh;
 
     pub struct ClothNodeData {
         pub prev_pos: glm::DVec3,
@@ -53,6 +53,90 @@ pub mod cloth {
                 edge.extra_data = Some(extra_data);
             }
         }
+    }
+}
+
+trait Constraint {
+    fn compute_l(&self, r_triplets: &mut Vec<eigen::Triplet>);
+    fn compute_j(&self, self_index: usize, r_triplets: &mut Vec<eigen::Triplet>);
+    fn compute_d(&self, mesh: &cloth::Mesh) -> glm::DVec3;
+}
+
+struct LinearSpringContraint {
+    spring_stiffness: f64,
+    rest_len: f64,
+    node_1_index: mesh::NodeIndex,
+    node_2_index: mesh::NodeIndex,
+}
+
+impl LinearSpringContraint {
+    fn new(
+        spring_stiffness: f64,
+        rest_len: f64,
+        node_1_index: mesh::NodeIndex,
+        node_2_index: mesh::NodeIndex,
+    ) -> Self {
+        return Self {
+            spring_stiffness,
+            rest_len,
+            node_1_index,
+            node_2_index,
+        };
+    }
+}
+
+impl Constraint for LinearSpringContraint {
+    fn compute_l(&self, r_triplets: &mut Vec<eigen::Triplet>) {
+        triplet_3_push(
+            r_triplets,
+            self.node_1_index.get_index(),
+            self.node_1_index.get_index(),
+            self.spring_stiffness,
+        );
+
+        triplet_3_push(
+            r_triplets,
+            self.node_2_index.get_index(),
+            self.node_2_index.get_index(),
+            self.spring_stiffness,
+        );
+
+        triplet_3_push(
+            r_triplets,
+            self.node_1_index.get_index(),
+            self.node_2_index.get_index(),
+            -self.spring_stiffness,
+        );
+
+        triplet_3_push(
+            r_triplets,
+            self.node_2_index.get_index(),
+            self.node_1_index.get_index(),
+            -self.spring_stiffness,
+        );
+    }
+
+    fn compute_j(&self, self_index: usize, r_triplets: &mut Vec<eigen::Triplet>) {
+        triplet_3_push(
+            r_triplets,
+            self.node_1_index.get_index(),
+            self_index,
+            self.spring_stiffness,
+        );
+
+        triplet_3_push(
+            r_triplets,
+            self.node_2_index.get_index(),
+            self_index,
+            -self.spring_stiffness,
+        );
+    }
+
+    fn compute_d(&self, cloth: &cloth::Mesh) -> glm::DVec3 {
+        let node_1 = cloth.get_node(self.node_1_index).unwrap();
+        let node_2 = cloth.get_node(self.node_2_index).unwrap();
+        let p_diff = node_1.pos - node_2.pos;
+        return self.rest_len * (p_diff) / glm::length(&p_diff);
     }
 }
 
@@ -360,4 +444,10 @@ fn triplet_3_push(triplets: &mut Vec<eigen::Triplet>, i1: usize, i2: usize, valu
     triplets.push(eigen::Triplet::new(3 * i1 + 0, 3 * i2 + 0, value));
     triplets.push(eigen::Triplet::new(3 * i1 + 1, 3 * i2 + 1, value));
     triplets.push(eigen::Triplet::new(3 * i1 + 2, 3 * i2 + 2, value));
+}
+
+impl mesh::NodeIndex {
+    fn get_index(&self) -> usize {
+        return generational_arena::Index::from(*self).into_raw_parts().0;
+    }
 }
