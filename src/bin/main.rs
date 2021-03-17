@@ -11,7 +11,7 @@ use std::rc::Rc;
 use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::drawable::Drawable;
 use cloth_simulator_rust::gpu_immediate::*;
-use cloth_simulator_rust::mesh::{simple::Mesh, MeshDrawData};
+use cloth_simulator_rust::mesh::MeshDrawData;
 use cloth_simulator_rust::shader::Shader;
 use cloth_simulator_rust::simulation::{cloth, Simulation};
 
@@ -45,14 +45,6 @@ fn main() {
         gl::Disable(gl::CULL_FACE);
         gl::Enable(gl::DEPTH_TEST);
     }
-
-    let mut mesh = Mesh::new();
-    mesh.read(&std::path::Path::new("models/monkey_subd_01.obj"))
-        .unwrap();
-    // mesh.read(&std::path::Path::new("models/cube.obj")).unwrap();
-    // mesh.read(&std::path::Path::new("tests/obj_test_06_winding_test.obj"))
-    // .unwrap();
-    mesh.generate_gl_mesh(false);
 
     let default_shader = Shader::new(
         std::path::Path::new("shaders/default_shader.vert"),
@@ -178,16 +170,15 @@ fn main() {
         // default_shader.use_shader();
         directional_light_shader.use_shader();
         // face_orientation_shader.use_shader();
-        // mesh.generate_gl_mesh(false);
 
         if run_sim {
             simulation.next_step(10);
         }
 
         let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
-        // let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
-        mesh.draw(&mut draw_data).unwrap();
         simulation.cloth.draw(&mut draw_data).unwrap();
+        let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
+        simulation.cloth.draw_wireframe(&mut draw_data).unwrap();
 
         window.borrow_mut().swap_buffers();
 
