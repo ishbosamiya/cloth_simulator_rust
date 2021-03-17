@@ -3,6 +3,11 @@ use nalgebra_glm as glm;
 use crate::eigen;
 use eigen::{SimplicialLLT, SparseMatrix, VecX};
 
+// TODO(ish): contraints support, so not limited to just linear springs per edge
+// TODO(ish): BVH implementation
+// TODO(ish): adaptive remeshing support
+// TODO(ish): collision handling support
+
 pub mod cloth {
     use super::*;
     use crate::mesh;
