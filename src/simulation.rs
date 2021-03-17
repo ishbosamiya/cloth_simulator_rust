@@ -160,28 +160,28 @@ impl Constraint for PinSpringConstraint {
 }
 
 enum ConstraintTypes {
-    LinearSpring(LinearSpringConstraint),
+    Linear(LinearSpringConstraint),
     Pin(PinSpringConstraint),
 }
 
 impl Constraint for ConstraintTypes {
     fn compute_l(&self, r_triplets: &mut Vec<eigen::Triplet>) {
         match self {
-            ConstraintTypes::LinearSpring(con) => con.compute_l(r_triplets),
+            ConstraintTypes::Linear(con) => con.compute_l(r_triplets),
             ConstraintTypes::Pin(con) => con.compute_l(r_triplets),
         }
     }
 
     fn compute_j(&self, self_index: usize, r_triplets: &mut Vec<eigen::Triplet>) {
         match self {
-            ConstraintTypes::LinearSpring(con) => con.compute_j(self_index, r_triplets),
+            ConstraintTypes::Linear(con) => con.compute_j(self_index, r_triplets),
             ConstraintTypes::Pin(con) => con.compute_j(self_index, r_triplets),
         }
     }
 
     fn compute_d(&self, cloth: &cloth::Mesh) -> glm::DVec3 {
         match self {
-            ConstraintTypes::LinearSpring(con) => con.compute_d(cloth),
+            ConstraintTypes::Linear(con) => con.compute_d(cloth),
             ConstraintTypes::Pin(con) => con.compute_d(cloth),
         }
     }
@@ -357,7 +357,7 @@ impl Simulation {
             let constraint =
                 LinearSpringConstraint::new(self.spring_stiffness, len, node_1_index, node_2_index);
 
-            constraints.push(ConstraintTypes::LinearSpring(constraint));
+            constraints.push(ConstraintTypes::Linear(constraint));
         }
 
         {
