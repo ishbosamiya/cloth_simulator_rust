@@ -110,7 +110,6 @@ fn main() {
     cloth
         .read(std::path::Path::new("models/plane_subd_02.obj"))
         .unwrap();
-    cloth.setup();
     let mut simulation = Simulation::new(cloth, 1.0, 1.0 / 30.0, 800.0);
     let mut run_sim = false;
 

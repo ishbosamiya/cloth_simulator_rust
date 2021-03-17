@@ -159,7 +159,7 @@ pub struct Simulation {
 
 impl Simulation {
     pub fn new(cloth: cloth::Mesh, cloth_mass: f64, time_step: f64, spring_stiffness: f64) -> Self {
-        return Self {
+        let mut sim = Self {
             cloth,
             cloth_mass,
             constraints: Vec::new(),
@@ -171,6 +171,9 @@ impl Simulation {
             j: SparseMatrix::new(),
             spring_stiffness,
         };
+        sim.cloth.setup();
+        sim.setup_constraints();
+        return sim;
     }
 
     /// Panics if mass_matrix is not initialized
@@ -325,10 +328,6 @@ impl Simulation {
         // TODO(ish): this can be optimized if the mesh structure
         // doesn't change between previous step and current step
         self.compute_mass_matrix();
-
-        // TODO(ish): this can be optimized if the mesh structure
-        // doesn't change between previous step and current step
-        self.setup_constraints();
 
         // TODO(ish): this can be optimized, instead of transforming
         // to y and then back, can do it in place with on single
