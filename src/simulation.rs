@@ -17,11 +17,7 @@ pub mod cloth {
     }
 
     type ClothVertData = ();
-
-    pub struct ClothEdgeData {
-        pub rest_len: f64,
-    }
-
+    type ClothEdgeData = ();
     type ClothFaceData = ();
 
     pub type Node = mesh::Node<ClothNodeData>;
@@ -35,22 +31,6 @@ pub mod cloth {
             for (_, node) in self.get_nodes_mut() {
                 let extra_data = ClothNodeData { prev_pos: node.pos };
                 node.extra_data = Some(extra_data);
-            }
-            let mut edge_data = Vec::new();
-            for (_, edge) in self.get_edges().iter() {
-                let edge_verts = edge.get_verts().unwrap();
-                let vert_1 = self.get_vert(edge_verts.0).unwrap();
-                let vert_2 = self.get_vert(edge_verts.1).unwrap();
-                let node_1 = self.get_node(vert_1.get_node_index().unwrap()).unwrap();
-                let node_2 = self.get_node(vert_2.get_node_index().unwrap()).unwrap();
-                let len = glm::length(&(node_1.pos - node_2.pos));
-                let extra_data = ClothEdgeData { rest_len: len };
-
-                edge_data.push((extra_data, edge.get_self_index()));
-            }
-            for (extra_data, edge_index) in edge_data {
-                let edge = self.get_edge_mut(edge_index).unwrap();
-                edge.extra_data = Some(extra_data);
             }
         }
     }
@@ -140,9 +120,34 @@ impl Constraint for LinearSpringContraint {
     }
 }
 
+enum ConstraintTypes {
+    LinearSpring(LinearSpringContraint),
+}
+
+impl Constraint for ConstraintTypes {
+    fn compute_l(&self, r_triplets: &mut Vec<eigen::Triplet>) {
+        match self {
+            ConstraintTypes::LinearSpring(con) => con.compute_l(r_triplets),
+        }
+    }
+
+    fn compute_j(&self, self_index: usize, r_triplets: &mut Vec<eigen::Triplet>) {
+        match self {
+            ConstraintTypes::LinearSpring(con) => con.compute_j(self_index, r_triplets),
+        }
+    }
+
+    fn compute_d(&self, cloth: &cloth::Mesh) -> glm::DVec3 {
+        match self {
+            ConstraintTypes::LinearSpring(con) => con.compute_d(cloth),
+        }
+    }
+}
+
 pub struct Simulation {
     pub cloth: cloth::Mesh,
     cloth_mass: f64,
+    constraints: Vec<ConstraintTypes>,
     mass_matrix: Option<SparseMatrix>,
     time_step: f64,
     d: VecX,
@@ -157,6 +162,7 @@ impl Simulation {
         return Self {
             cloth,
             cloth_mass,
+            constraints: Vec::new(),
             mass_matrix: None,
             time_step,
             d: VecX::new(),
@@ -225,47 +231,9 @@ impl Simulation {
         self.l.resize(3 * num_nodes, 3 * num_nodes);
 
         let mut l_triplets = Vec::new();
-
-        for (_, edge) in self.cloth.get_edges().iter() {
-            let edge_verts = edge.get_verts().unwrap();
-            let vert_1 = self.cloth.get_vert(edge_verts.0).unwrap();
-            let vert_2 = self.cloth.get_vert(edge_verts.1).unwrap();
-            let node_1_index = generational_arena::Index::from(vert_1.get_node_index().unwrap())
-                .into_raw_parts()
-                .0;
-            let node_2_index = generational_arena::Index::from(vert_2.get_node_index().unwrap())
-                .into_raw_parts()
-                .0;
-
-            triplet_3_push(
-                &mut l_triplets,
-                node_1_index,
-                node_1_index,
-                self.spring_stiffness,
-            );
-
-            triplet_3_push(
-                &mut l_triplets,
-                node_2_index,
-                node_2_index,
-                self.spring_stiffness,
-            );
-
-            triplet_3_push(
-                &mut l_triplets,
-                node_1_index,
-                node_2_index,
-                -self.spring_stiffness,
-            );
-
-            triplet_3_push(
-                &mut l_triplets,
-                node_2_index,
-                node_1_index,
-                -self.spring_stiffness,
-            );
-        }
-
+        self.constraints
+            .iter()
+            .for_each(|con| con.compute_l(&mut l_triplets));
         self.l.set_from_triplets(&l_triplets);
     }
 
@@ -283,36 +251,10 @@ impl Simulation {
         self.j.resize(3 * num_nodes, 3 * num_edges);
 
         let mut j_triplets = Vec::new();
-
-        for (edge_index, edge) in self.cloth.get_edges().iter() {
-            let edge_index = generational_arena::Index::from(edge_index)
-                .into_raw_parts()
-                .0;
-            let edge_verts = edge.get_verts().unwrap();
-            let vert_1 = self.cloth.get_vert(edge_verts.0).unwrap();
-            let vert_2 = self.cloth.get_vert(edge_verts.1).unwrap();
-            let node_1_index = generational_arena::Index::from(vert_1.get_node_index().unwrap())
-                .into_raw_parts()
-                .0;
-            let node_2_index = generational_arena::Index::from(vert_2.get_node_index().unwrap())
-                .into_raw_parts()
-                .0;
-
-            triplet_3_push(
-                &mut j_triplets,
-                node_1_index,
-                edge_index,
-                self.spring_stiffness,
-            );
-
-            triplet_3_push(
-                &mut j_triplets,
-                node_2_index,
-                edge_index,
-                -self.spring_stiffness,
-            );
-        }
-
+        self.constraints
+            .iter()
+            .enumerate()
+            .for_each(|(i, con)| con.compute_j(i, &mut j_triplets));
         self.j.set_from_triplets(&j_triplets);
     }
 
@@ -349,32 +291,44 @@ impl Simulation {
     }
 
     /// Solves for the vector d from the paper
-    /// Currently supports only direct edges as springs, will need to add better contraints later
     fn solve_d(&mut self) {
-        self.d.resize(3 * self.get_num_springs());
-        for (i, (_, edge)) in self.cloth.get_edges().iter().enumerate() {
+        let mut d = VecX::new_with_size(3 * self.get_num_constraints());
+        self.constraints
+            .iter()
+            .enumerate()
+            .for_each(|(i, con)| d.set_v3_glm(i, &con.compute_d(&self.cloth)));
+        self.d = d;
+    }
+
+    fn setup_constraints(&mut self) {
+        let mut constraints = Vec::new();
+        for (_, edge) in self.cloth.get_edges().iter() {
             let edge_verts = edge.get_verts().unwrap();
             let vert_1 = self.cloth.get_vert(edge_verts.0).unwrap();
             let vert_2 = self.cloth.get_vert(edge_verts.1).unwrap();
-            let node_1 = self
-                .cloth
-                .get_node(vert_1.get_node_index().unwrap())
-                .unwrap();
-            let node_2 = self
-                .cloth
-                .get_node(vert_2.get_node_index().unwrap())
-                .unwrap();
-            let p_diff = node_1.pos - node_2.pos;
-            let res = edge.extra_data.as_ref().unwrap().rest_len * (p_diff) / glm::length(&p_diff);
+            let node_1_index = vert_1.get_node_index().unwrap();
+            let node_2_index = vert_2.get_node_index().unwrap();
+            let node_1 = self.cloth.get_node(node_1_index).unwrap();
+            let node_2 = self.cloth.get_node(node_2_index).unwrap();
+            let len = glm::length(&(node_1.pos - node_2.pos));
 
-            self.d.set_v3_glm(i, &res);
+            let constraint =
+                LinearSpringContraint::new(self.spring_stiffness, len, node_1_index, node_2_index);
+
+            constraints.push(ConstraintTypes::LinearSpring(constraint));
         }
+
+        self.constraints = constraints;
     }
 
     pub fn next_step(&mut self, num_iterations: usize) {
         // TODO(ish): this can be optimized if the mesh structure
         // doesn't change between previous step and current step
         self.compute_mass_matrix();
+
+        // TODO(ish): this can be optimized if the mesh structure
+        // doesn't change between previous step and current step
+        self.setup_constraints();
 
         // TODO(ish): this can be optimized, instead of transforming
         // to y and then back, can do it in place with on single
@@ -415,8 +369,8 @@ impl Simulation {
         }
     }
 
-    fn get_num_springs(&self) -> usize {
-        return self.cloth.get_edges().len();
+    fn get_num_constraints(&self) -> usize {
+        return self.constraints.len();
     }
 }
 
