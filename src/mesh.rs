@@ -586,6 +586,49 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
 
         return Ok(());
     }
+
+    fn draw_wireframe(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
+        let imm = &mut draw_data.imm;
+        let shader = &draw_data.shader;
+        shader.use_shader();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin(GPUPrimType::Lines, self.edges.len() * 2, shader);
+
+        for (_, edge) in &self.edges {
+            let (vert_1_index, vert_2_index) = edge.get_verts().unwrap();
+            let vert_1 = self.verts.get(vert_1_index.0).unwrap();
+            let vert_2 = self.verts.get(vert_2_index.0).unwrap();
+            let node_1_index = vert_1.node.unwrap();
+            let node_2_index = vert_2.node.unwrap();
+            let node_1 = self.nodes.get(node_1_index.0).unwrap();
+            let node_2 = self.nodes.get(node_2_index.0).unwrap();
+            let node_1_pos: glm::Vec3 = glm::convert(node_1.pos);
+            let node_2_pos: glm::Vec3 = glm::convert(node_2.pos);
+
+            imm.attr_4f(color_attr, 0.8, 0.8, 0.8, 1.0);
+            imm.vertex_3f(pos_attr, node_1_pos[0], node_1_pos[1], node_1_pos[2]);
+            imm.attr_4f(color_attr, 1.0, 1.0, 1.0, 1.0);
+            imm.vertex_3f(pos_attr, node_2_pos[0], node_2_pos[1], node_2_pos[2]);
+        }
+
+        imm.end();
+
+        return Ok(());
+    }
 }
 
 impl<T> Face<T> {
