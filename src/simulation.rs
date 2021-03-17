@@ -242,16 +242,12 @@ impl Simulation {
 
     fn compute_j(&mut self) {
         // assert_eq!(
-        //     self.cloth.get_edges().capacity(),
-        //     self.cloth.get_edges().len()
-        // );
-        // assert_eq!(
         //     self.cloth.get_nodes().capacity(),
         //     self.cloth.get_nodes().len()
         // ); // TODO(ish): make sure that there isn't an element within nodes that isn't assigned to a value
         let num_nodes = self.cloth.get_nodes().len();
-        let num_edges = self.cloth.get_edges().len();
-        self.j.resize(3 * num_nodes, 3 * num_edges);
+        let num_constraints = self.get_num_constraints();
+        self.j.resize(3 * num_nodes, 3 * num_constraints);
 
         let mut j_triplets = Vec::new();
         self.constraints
