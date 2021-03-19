@@ -417,6 +417,83 @@ impl Simulation {
     fn get_num_constraints(&self) -> usize {
         return self.constraints.len();
     }
+
+    pub fn try_toggle_pin_constraint(&mut self, p0: &glm::DVec3, dir: &glm::DVec3) {
+        // TODO(ish): make minimum distance parameter as part of global settings
+        let min_dist = 0.1;
+
+        // Find nearest point to cloth's nodes
+        let mut node_best = None;
+        let mut node_best_dist = f64::MAX;
+        for (node_index, node) in self.cloth.get_nodes().iter() {
+            let p1 = node.pos;
+            let p1_to_ray_distance = glm::length(&glm::cross(&(p1 - p0), &dir));
+
+            if p1_to_ray_distance < min_dist {
+                if let None = node_best {
+                    node_best = Some(node_index);
+                    node_best_dist = p1_to_ray_distance;
+                } else {
+                    if node_best_dist > p1_to_ray_distance {
+                        node_best = Some(node_index);
+                        node_best_dist = p1_to_ray_distance;
+                    }
+                }
+            }
+        }
+        // Find nearest point within Pin Constraints
+        let mut constraint_best = None;
+        let mut constraint_best_dist = f64::MAX;
+        for (constraint_index, constraint) in self.constraints.iter().enumerate() {
+            if let ConstraintTypes::Pin(pin) = constraint {
+                let p1 = self.cloth.get_node(pin.node_index).unwrap().pos;
+                let p1_to_ray_distance = glm::length(&glm::cross(&(p1 - p0), &dir));
+
+                if p1_to_ray_distance < min_dist {
+                    if let Some(node_best_index) = node_best {
+                        if node_best_index == pin.node_index.0 {
+                            node_best = None;
+                        }
+                    }
+                    if let None = constraint_best {
+                        constraint_best = Some(constraint_index);
+                        constraint_best_dist = p1_to_ray_distance;
+                    } else {
+                        if constraint_best_dist > p1_to_ray_distance {
+                            constraint_best = Some(constraint_index);
+                            constraint_best_dist = p1_to_ray_distance;
+                        }
+                    }
+                }
+            }
+        }
+        // Pick best candidate, and toggle
+        let should_remove_constraint;
+        if node_best.is_none() && constraint_best.is_none() {
+            return;
+        } else if node_best.is_none() && constraint_best.is_some() {
+            should_remove_constraint = true;
+        } else if node_best.is_some() && constraint_best.is_none() {
+            should_remove_constraint = false;
+        } else {
+            if constraint_best_dist < node_best_dist {
+                should_remove_constraint = true;
+            } else {
+                should_remove_constraint = false;
+            }
+        }
+
+        if should_remove_constraint {
+            println!("removed pin constraint");
+            self.constraints.remove(constraint_best.unwrap());
+        } else {
+            println!("added pin constraint");
+            let node_index = mesh::NodeIndex(node_best.unwrap());
+            let node = self.cloth.get_node(node_index).unwrap();
+            let pin = PinSpringConstraint::new(self.spring_stiffness, node.pos, node_index);
+            self.constraints.push(ConstraintTypes::Pin(pin));
+        }
+    }
 }
 
 impl VecX {

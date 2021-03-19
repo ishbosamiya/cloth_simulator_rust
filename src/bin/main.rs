@@ -119,6 +119,7 @@ fn main() {
                 event,
                 &mut camera,
                 &mut last_cursor,
+                &mut simulation,
                 &mut run_sim,
             );
         }
@@ -191,6 +192,7 @@ fn handle_window_event(
     event: glfw::WindowEvent,
     camera: &mut WindowCamera,
     last_cursor: &mut (f64, f64),
+    simulation: &mut Simulation,
     r_run_sim: &mut bool,
 ) {
     let cursor = window.borrow_mut().get_cursor_pos();
@@ -226,6 +228,12 @@ fn handle_window_event(
                 false,
             );
         }
+    }
+    if window.borrow().get_mouse_button(glfw::MouseButtonLeft) == Action::Press {
+        simulation.try_toggle_pin_constraint(
+            &camera.get_position(),
+            &camera.get_raycast_direction(cursor.0, cursor.1),
+        );
     }
     *last_cursor = cursor;
 }
