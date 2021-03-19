@@ -516,7 +516,7 @@ impl Drawable<ConstraintDrawData<'_>, ()> for Simulation {
         let color_attr = format.add_attribute(
             "in_color\0".to_string(),
             GPUVertCompType::F32,
-            3,
+            4,
             GPUVertFetchMode::Float,
         );
 
@@ -528,7 +528,7 @@ impl Drawable<ConstraintDrawData<'_>, ()> for Simulation {
         for constraint in self.constraints.iter() {
             match constraint {
                 ConstraintTypes::Pin(pin) => {
-                    imm.attr_3f(color_attr, 0.7, 0.3, 0.1);
+                    imm.attr_4f(color_attr, 0.7, 0.3, 0.1, 1.0);
                     let pos: glm::Vec3 = glm::convert(pin.rest_pos);
                     imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
                 }
