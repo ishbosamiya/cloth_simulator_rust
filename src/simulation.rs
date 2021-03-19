@@ -537,6 +537,24 @@ impl Drawable<ConstraintDrawData<'_>, ()> for Simulation {
         }
         imm.end();
 
+        // imm.begin_at_most(GPUPrimType::Lines, self.constraints.len() * 2, shader);
+        // for constraint in self.constraints.iter() {
+        //     match constraint {
+        //         ConstraintTypes::Linear(con) => {
+        //             let node_1 = self.cloth.get_node(con.node_1_index).unwrap();
+        //             let node_2 = self.cloth.get_node(con.node_2_index).unwrap();
+        //             imm.attr_4f(color_attr, 0.3, 0.7, 0.1, 1.0);
+        //             let pos: glm::Vec3 = glm::convert(node_1.pos);
+        //             imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+        //             imm.attr_4f(color_attr, 0.3, 0.7, 0.1, 1.0);
+        //             let pos: glm::Vec3 = glm::convert(node_2.pos);
+        //             imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+        //         }
+        //         _ => (),
+        //     }
+        // }
+        // imm.end();
+
         return Ok(());
     }
 }
