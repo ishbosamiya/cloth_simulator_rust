@@ -175,4 +175,23 @@ impl WindowCamera {
             self.zoom = max;
         }
     }
+
+    pub fn get_raycast_direction(&self, mouse_x: f64, mouse_y: f64) -> glm::DVec3 {
+        let window = self
+            .window
+            .upgrade()
+            .expect("Window with which camera was made is lost");
+        let (width, height) = window.borrow().get_size();
+        let x = (2.0 * mouse_x) / width as f64 - 1.0;
+        let y = 1.0 - (2.0 * mouse_y) / height as f64;
+
+        let ray_clip = glm::vec4(x, y, -1.0, 1.0);
+
+        let ray_eye = glm::inverse(&self.get_projection_matrix()) * ray_clip;
+        let ray_eye = glm::vec4(ray_eye[0], ray_eye[0], -1.0, 0.0);
+
+        let ray_wor = glm::inverse(&self.get_view_matrix()) * ray_eye;
+        let result = glm::normalize(&glm::vec4_to_vec3(&ray_wor));
+        return result;
+    }
 }
