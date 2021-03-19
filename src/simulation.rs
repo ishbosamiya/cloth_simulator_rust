@@ -374,16 +374,6 @@ impl Simulation {
             constraints.push(ConstraintTypes::Linear(constraint));
         }
 
-        {
-            let (node, node_index) = self.cloth.get_nodes().get_unknown_gen(0).unwrap();
-            let pin = PinSpringConstraint::new(
-                self.spring_stiffness,
-                node.pos,
-                mesh::NodeIndex(node_index),
-            );
-            constraints.push(ConstraintTypes::Pin(pin));
-        }
-
         self.constraints = constraints;
     }
 
