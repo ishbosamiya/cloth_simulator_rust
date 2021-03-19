@@ -13,7 +13,7 @@ use cloth_simulator_rust::drawable::Drawable;
 use cloth_simulator_rust::gpu_immediate::*;
 use cloth_simulator_rust::mesh::MeshDrawData;
 use cloth_simulator_rust::shader::Shader;
-use cloth_simulator_rust::simulation::{cloth, Simulation};
+use cloth_simulator_rust::simulation::{cloth, ConstraintDrawData, Simulation};
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -180,6 +180,8 @@ fn main() {
         simulation.cloth.draw(&mut draw_data).unwrap();
         let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
         simulation.cloth.draw_wireframe(&mut draw_data).unwrap();
+        let mut draw_data = ConstraintDrawData::new(&mut imm, &smooth_3d_color_shader);
+        simulation.draw(&mut draw_data).unwrap();
 
         window.borrow_mut().swap_buffers();
 

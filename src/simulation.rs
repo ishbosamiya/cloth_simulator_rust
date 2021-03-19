@@ -1,7 +1,10 @@
 use nalgebra_glm as glm;
 
+use crate::drawable::Drawable;
 use crate::eigen;
+use crate::gpu_immediate::*;
 use crate::mesh;
+use crate::shader::Shader;
 use eigen::{SimplicialLLT, SparseMatrix, VecX};
 
 // TODO(ish): BVH implementation
@@ -77,6 +80,17 @@ impl PinSpringConstraint {
             rest_pos,
             node_index,
         };
+    }
+}
+
+pub struct ConstraintDrawData<'a> {
+    imm: &'a mut GPUImmediate,
+    shader: &'a Shader,
+}
+
+impl<'a> ConstraintDrawData<'a> {
+    pub fn new(imm: &'a mut GPUImmediate, shader: &'a Shader) -> Self {
+        return ConstraintDrawData { imm, shader };
     }
 }
 
@@ -493,6 +507,47 @@ impl Simulation {
             let pin = PinSpringConstraint::new(self.spring_stiffness, node.pos, node_index);
             self.constraints.push(ConstraintTypes::Pin(pin));
         }
+    }
+}
+
+impl Drawable<ConstraintDrawData<'_>, ()> for Simulation {
+    fn draw(&self, draw_data: &mut ConstraintDrawData) -> Result<(), ()> {
+        let imm = &mut draw_data.imm;
+        let shader = &draw_data.shader;
+        shader.use_shader();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+
+        unsafe {
+            gl::PointSize(10.0);
+        }
+
+        imm.begin_at_most(GPUPrimType::Points, self.constraints.len(), shader);
+        for constraint in self.constraints.iter() {
+            match constraint {
+                ConstraintTypes::Pin(pin) => {
+                    imm.attr_3f(color_attr, 0.7, 0.3, 0.1);
+                    let pos: glm::Vec3 = glm::convert(pin.rest_pos);
+                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+                }
+                _ => (),
+            }
+        }
+        imm.end();
+
+        return Ok(());
     }
 }
 
