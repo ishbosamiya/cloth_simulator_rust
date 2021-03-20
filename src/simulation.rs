@@ -358,23 +358,64 @@ impl Simulation {
 
     fn setup_constraints(&mut self) {
         let mut constraints = Vec::new();
-        for (_, edge) in self.cloth.get_edges().iter() {
-            let edge_verts = edge.get_verts().unwrap();
-            let vert_1 = self.cloth.get_vert(edge_verts.0).unwrap();
-            let vert_2 = self.cloth.get_vert(edge_verts.1).unwrap();
-            let node_1_index = vert_1.get_node_index().unwrap();
-            let node_2_index = vert_2.get_node_index().unwrap();
-            let node_1 = self.cloth.get_node(node_1_index).unwrap();
-            let node_2 = self.cloth.get_node(node_2_index).unwrap();
-            let len = glm::length(&(node_1.pos - node_2.pos));
+        for (_, face) in self.cloth.get_faces() {
+            let verts = &face.get_verts();
+            assert!(
+                verts.len() < 5,
+                "TODO(ish): Constraint setup not supported for faces with more than 4 verts."
+            );
 
-            let constraint =
-                LinearSpringConstraint::new(self.spring_stiffness, len, node_1_index, node_2_index);
-
-            constraints.push(ConstraintTypes::Linear(constraint));
+            if verts.len() == 3 || verts.len() == 4 {
+                let vert_1_index = verts[0];
+                let vert_1 = self.cloth.get_vert(vert_1_index).unwrap();
+                let node_1_index = vert_1.get_node_index().unwrap();
+                let vert_2_index = verts[1];
+                let vert_2 = self.cloth.get_vert(vert_2_index).unwrap();
+                let node_2_index = vert_2.get_node_index().unwrap();
+                let vert_3_index = verts[2];
+                let vert_3 = self.cloth.get_vert(vert_3_index).unwrap();
+                let node_3_index = vert_3.get_node_index().unwrap();
+                constraints.push(ConstraintTypes::Linear(
+                    self.get_constraint(node_1_index, node_2_index),
+                ));
+                constraints.push(ConstraintTypes::Linear(
+                    self.get_constraint(node_2_index, node_3_index),
+                ));
+                constraints.push(ConstraintTypes::Linear(
+                    self.get_constraint(node_3_index, node_1_index),
+                ));
+                if verts.len() == 4 {
+                    let vert_4_index = verts[3];
+                    let vert_4 = self.cloth.get_vert(vert_4_index).unwrap();
+                    let node_4_index = vert_4.get_node_index().unwrap();
+                    constraints.push(ConstraintTypes::Linear(
+                        self.get_constraint(node_3_index, node_4_index),
+                    ));
+                    constraints.push(ConstraintTypes::Linear(
+                        self.get_constraint(node_4_index, node_1_index),
+                    ));
+                    constraints.push(ConstraintTypes::Linear(
+                        self.get_constraint(node_2_index, node_4_index),
+                    ));
+                }
+            } else {
+                panic!("Face verts length cannot be less than 3");
+            }
         }
 
         self.constraints = constraints;
+    }
+
+    #[inline]
+    fn get_constraint(
+        &self,
+        node_1_index: mesh::NodeIndex,
+        node_2_index: mesh::NodeIndex,
+    ) -> LinearSpringConstraint {
+        let node_1 = self.cloth.get_node(node_1_index).unwrap();
+        let node_2 = self.cloth.get_node(node_2_index).unwrap();
+        let len = glm::length(&(node_1.pos - node_2.pos));
+        return LinearSpringConstraint::new(self.spring_stiffness, len, node_1_index, node_2_index);
     }
 
     pub fn next_step(&mut self, num_iterations: usize) {

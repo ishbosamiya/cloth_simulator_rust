@@ -641,6 +641,10 @@ impl<T> Face<T> {
             verts: Vec::new(),
         };
     }
+
+    pub fn get_verts(&self) -> &AdjacentVerts {
+        return &self.verts;
+    }
 }
 
 impl<T> Edge<T> {
