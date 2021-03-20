@@ -104,6 +104,7 @@ fn main() {
         .unwrap();
     let mut simulation = Simulation::new(cloth, 1.0, 1.0 / 30.0, 800.0);
     let mut run_sim = false;
+    let mut draw_linear_constraints = false;
 
     let mut imm = GPUImmediate::new();
 
@@ -120,6 +121,7 @@ fn main() {
                 &mut camera,
                 &mut last_cursor,
                 &mut simulation,
+                &mut draw_linear_constraints,
                 &mut run_sim,
             );
         }
@@ -180,7 +182,8 @@ fn main() {
         simulation.cloth.draw(&mut draw_data).unwrap();
         let mut draw_data = MeshDrawData::new(&mut imm, &smooth_3d_color_shader);
         simulation.cloth.draw_wireframe(&mut draw_data).unwrap();
-        let mut draw_data = ConstraintDrawData::new(&mut imm, &smooth_3d_color_shader);
+        let mut draw_data =
+            ConstraintDrawData::new(&mut imm, &smooth_3d_color_shader, draw_linear_constraints);
         simulation.draw(&mut draw_data).unwrap();
 
         window.borrow_mut().swap_buffers();
@@ -195,6 +198,7 @@ fn handle_window_event(
     camera: &mut WindowCamera,
     last_cursor: &mut (f64, f64),
     simulation: &mut Simulation,
+    r_draw_linear: &mut bool,
     r_run_sim: &mut bool,
 ) {
     let cursor = window.borrow_mut().get_cursor_pos();
@@ -212,6 +216,9 @@ fn handle_window_event(
         },
         glfw::WindowEvent::Scroll(_, scroll_y) => {
             camera.zoom(scroll_y);
+        }
+        glfw::WindowEvent::Key(Key::D, _, Action::Press, _) => {
+            *r_draw_linear = !*r_draw_linear;
         }
         _ => {}
     }
