@@ -8,20 +8,32 @@ struct BVHNodeIndex(pub Index);
 struct BVIndex(pub Index);
 
 struct BVHNode<T> {
-    children: Vec<BVHNodeIndex>, // Indices of the child nodes
-    parent: BVHNodeIndex,        // Parent index
+    children: Vec<BVHNodeIndex>,  // Indices of the child nodes
+    parent: Option<BVHNodeIndex>, // Parent index
 
-    bv: BVIndex,   // Bounding volume start index within node_bv of the tree
-    elem_index: T, // Index of element stored in the node
-    totnode: u8,   // How many nodes are used, used for speedup
-    main_axis: u8, // Axis used to split this node
+    bv: Vec<Scalar>,       // Bounding volume axis data
+    elem_index: Option<T>, // Index of element stored in the node
+    totnode: u8,           // How many nodes are used, used for speedup
+    main_axis: u8,         // Axis used to split this node
+}
+
+impl<T> BVHNode<T> {
+    fn new() -> Self {
+        return Self {
+            children: Vec::new(),
+            parent: None,
+
+            bv: Vec::new(),
+            elem_index: None,
+            totnode: 0,
+            main_axis: 0,
+        };
+    }
 }
 
 pub struct BVHTree<T> {
     nodes: Vec<BVHNodeIndex>,
     node_array: Arena<BVHNode<T>>, // Where the actual nodes are stored
-    node_child: Vec<BVHNodeIndex>,
-    node_bv: Arena<Scalar>, // Where the actual bounding volume info is stored
 
     epsilon: Scalar, // Epsilon for inflation of the kdop
     totleaf: usize,
@@ -69,17 +81,21 @@ impl<T> BVHTree<T> {
         let numnodes =
             max_size + implicit_needed_branches(tree_type, max_size) + tree_type as usize;
         let nodes = Vec::with_capacity(numnodes);
-        let node_array = Arena::with_capacity(numnodes);
-        let node_child = Vec::with_capacity(tree_type as usize * numnodes);
-        let node_bv = Arena::with_capacity(axis as usize * numnodes);
+        let mut node_array = Arena::with_capacity(numnodes);
 
-        // TODO(ish): initialize and link up everything
+        for _ in 0..numnodes {
+            node_array.insert(BVHNode::new());
+        }
+
+        for i in 0..numnodes {
+            let node = node_array.get_unknown_gen_mut(i).unwrap().0;
+            node.bv.resize(axis.into(), 0.0);
+            // TODO(ish): might have to initialize the node.children here but should be possible elsewhere
+        }
 
         return Self {
             nodes,
             node_array,
-            node_child,
-            node_bv,
 
             epsilon,
             totleaf: 0,
