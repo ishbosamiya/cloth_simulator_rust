@@ -1,3 +1,4 @@
+pub mod bvh;
 pub mod camera;
 pub mod drawable;
 pub mod eigen;
