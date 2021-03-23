@@ -26,7 +26,6 @@ lazy_static! {
 type Scalar = f64;
 
 struct BVHNodeIndex(pub Index);
-struct BVIndex(pub Index);
 
 struct BVHNode<T> {
     children: Vec<BVHNodeIndex>,  // Indices of the child nodes
@@ -86,6 +85,23 @@ impl<T> BVHNode<T> {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum BVHError {
+    IndexOutOfRange,
+    DifferentNumPoints,
+}
+
+impl std::fmt::Display for BVHError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BVHError::IndexOutOfRange => write!(f, "Index given is out of range"),
+            BVHError::DifferentNumPoints => write!(f, "Different number of points given"),
+        }
+    }
+}
+
+impl std::error::Error for BVHError {}
 
 pub struct BVHTree<T> {
     nodes: Vec<BVHNodeIndex>,
@@ -180,6 +196,39 @@ impl<T> BVHTree<T> {
             node.bv[(2 * axis_iter)] -= self.epsilon; // min
             node.bv[(2 * axis_iter) + 1] += self.epsilon; // max
         }
+    }
+
+    pub fn update(
+        &mut self,
+        node_index: usize,
+        co_many: Vec<glm::TVec3<Scalar>>,
+        co_moving_many: Vec<glm::TVec3<Scalar>>,
+    ) -> Result<(), BVHError> {
+        if node_index > self.totleaf {
+            return Err(BVHError::IndexOutOfRange);
+        }
+        if co_moving_many.len() > 0 {
+            if co_many.len() != co_moving_many.len() {
+                return Err(BVHError::DifferentNumPoints);
+            }
+        }
+
+        let node = self.node_array.get_unknown_mut(node_index);
+
+        node.create_kdop_hull(self.start_axis, self.stop_axis, co_many, false);
+
+        if co_moving_many.len() > 0 {
+            node.create_kdop_hull(self.start_axis, self.stop_axis, co_moving_many, true);
+        }
+
+        // Inflate bv by epsilon
+        for axis_iter in self.start_axis..self.stop_axis {
+            let axis_iter = axis_iter as usize;
+            node.bv[(2 * axis_iter)] -= self.epsilon; // min
+            node.bv[(2 * axis_iter) + 1] += self.epsilon; // max
+        }
+
+        return Ok(());
     }
 }
 
