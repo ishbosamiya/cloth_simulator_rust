@@ -1,6 +1,27 @@
 use generational_arena::{Arena, Index};
+use nalgebra_glm as glm;
 
 const MAX_TREETYPE: u8 = 32;
+
+lazy_static! {
+    static ref BVHTREE_KDOP_AXES: Vec<glm::TVec3<Scalar>> = {
+        let mut v = Vec::with_capacity(13);
+        v.push(glm::vec3(1.0, 0.0, 0.0));
+        v.push(glm::vec3(0.0, 1.0, 0.0));
+        v.push(glm::vec3(0.0, 0.0, 1.0));
+        v.push(glm::vec3(1.0, 1.0, 1.0));
+        v.push(glm::vec3(1.0, -1.0, 1.0));
+        v.push(glm::vec3(1.0, 1.0, -1.0));
+        v.push(glm::vec3(1.0, -1.0, -1.0));
+        v.push(glm::vec3(1.0, 1.0, 0.0));
+        v.push(glm::vec3(1.0, 0.0, 1.0));
+        v.push(glm::vec3(1.0, -1.0, 0.0));
+        v.push(glm::vec3(1.0, 0.0, -1.0));
+        v.push(glm::vec3(0.0, 1.0, -1.0));
+        assert_eq!(v.len(), 13);
+        v
+    };
+}
 
 type Scalar = f64;
 
@@ -28,6 +49,41 @@ impl<T> BVHNode<T> {
             totnode: 0,
             main_axis: 0,
         };
+    }
+
+    fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
+        let bv = &mut self.bv;
+        for axis_iter in start_axis..stop_axis {
+            bv[(axis_iter + 0) as usize] = Scalar::MAX;
+            bv[(axis_iter + 1) as usize] = -Scalar::MAX;
+        }
+    }
+
+    fn create_kdop_hull(
+        &mut self,
+        start_axis: u8,
+        stop_axis: u8,
+        co_many: Vec<glm::TVec3<Scalar>>,
+        moving: bool,
+    ) {
+        if !moving {
+            self.min_max_init(start_axis, stop_axis);
+        }
+        let bv = &mut self.bv;
+
+        assert_eq!(bv.len(), (stop_axis * 2) as usize);
+        for co in co_many {
+            for axis_iter in start_axis..stop_axis {
+                let axis_iter = axis_iter as usize;
+                let new_min_max = glm::dot(&co, &BVHTREE_KDOP_AXES[axis_iter]);
+                if new_min_max < bv[2 * axis_iter] {
+                    bv[2 * axis_iter] = new_min_max;
+                }
+                if new_min_max > bv[(2 * axis_iter) + 1] {
+                    bv[(2 * axis_iter) + 1] = new_min_max;
+                }
+            }
+        }
     }
 }
 
@@ -106,8 +162,54 @@ impl<T> BVHTree<T> {
             tree_type,
         };
     }
+
+    pub fn insert(&mut self, index: T, co_many: Vec<glm::TVec3<Scalar>>) {
+        assert!(self.totbranch <= 0);
+
+        self.nodes[self.totleaf] = BVHNodeIndex(self.node_array.get_unknown_index(self.totleaf));
+        let node = self.node_array.get_unknown_mut(self.totleaf);
+
+        self.totleaf += 1;
+
+        node.create_kdop_hull(self.start_axis, self.stop_axis, co_many, false);
+        node.elem_index = Some(index);
+
+        // Inflate bv by epsilon
+        for axis_iter in self.start_axis..self.stop_axis {
+            let axis_iter = axis_iter as usize;
+            node.bv[(2 * axis_iter)] -= self.epsilon; // min
+            node.bv[(2 * axis_iter) + 1] += self.epsilon; // max
+        }
+    }
 }
 
 fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {
     return 1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize;
+}
+
+trait ArenaFunctions {
+    type Output;
+
+    fn get_unknown_index(&self, i: usize) -> Index;
+    fn get_unknown(&self, i: usize) -> &Self::Output;
+    fn get_unknown_mut(&mut self, i: usize) -> &mut Self::Output;
+}
+
+impl<T> ArenaFunctions for Arena<T> {
+    type Output = T;
+
+    #[inline]
+    fn get_unknown_index(&self, i: usize) -> Index {
+        return self.get_unknown_gen(i).unwrap().1;
+    }
+
+    #[inline]
+    fn get_unknown(&self, i: usize) -> &Self::Output {
+        return self.get_unknown_gen(i).unwrap().0;
+    }
+
+    #[inline]
+    fn get_unknown_mut(&mut self, i: usize) -> &mut Self::Output {
+        return self.get_unknown_gen_mut(i).unwrap().0;
+    }
 }

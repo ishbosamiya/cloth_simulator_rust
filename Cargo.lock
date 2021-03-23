@@ -114,6 +114,7 @@ dependencies = [
  "gl",
  "glfw",
  "itertools 0.10.0",
+ "lazy_static",
  "nalgebra",
  "nalgebra-glm",
  "rand 0.8.2",
