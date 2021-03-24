@@ -25,5 +25,9 @@ cpp_build = "0.5"
 name = "mesh_benchmark"
 harness = false
 
+[[bench]]
+name = "bvh_benchmark"
+harness = false
+
 [dependencies.glfw]
 git = "https://github.com/bjz/glfw-rs.git"
