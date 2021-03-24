@@ -162,7 +162,7 @@ impl BVHBuildHelper {
 
 struct BVHDivNodesData<'a> {
     brances_array_start: usize,
-    tree_offset: usize,
+    tree_offset: isize,
     data: &'a BVHBuildHelper,
     depth: usize,
     i: usize,
@@ -172,7 +172,7 @@ struct BVHDivNodesData<'a> {
 impl<'a> BVHDivNodesData<'a> {
     fn new(
         brances_array_start: usize,
-        tree_offset: usize,
+        tree_offset: isize,
         data: &'a BVHBuildHelper,
         depth: usize,
         i: usize,
@@ -471,7 +471,8 @@ impl<T> BVHTree<T> {
         nth_positions[self.tree_type as usize] = parent_leafs_end;
         for k in 1..self.tree_type {
             let k = k as usize;
-            let child_index = j * self.tree_type as usize + data.tree_offset + k;
+            let child_index =
+                ((j * self.tree_type as usize) as isize + data.tree_offset + k as isize) as usize;
             let child_level_index = child_index - data.first_of_next_level;
             nth_positions[k] = data
                 .data
@@ -483,7 +484,8 @@ impl<T> BVHTree<T> {
         // setup children and totnode counters
         for k in 0..self.tree_type {
             let k = k as usize;
-            let child_index = j * self.tree_type as usize + data.tree_offset + k;
+            let child_index =
+                ((j * self.tree_type as usize) as isize + data.tree_offset + k as isize) as usize;
             let child_level_index = child_index - data.first_of_next_level;
 
             let child_leafs_begin = data
@@ -518,7 +520,7 @@ impl<T> BVHTree<T> {
 
     fn non_recursive_bvh_div_nodes(&mut self, branches_array_start: usize, num_leafs: usize) {
         let tree_type = self.tree_type;
-        let tree_offset = 2 - tree_type;
+        let tree_offset: isize = 2 - tree_type as isize;
         let num_branches = implicit_needed_branches(tree_type, num_leafs);
 
         if num_leafs == 1 {
@@ -538,14 +540,14 @@ impl<T> BVHTree<T> {
 
         let data = self.build_implicit_helper();
 
-        let mut cb_data =
-            BVHDivNodesData::new(branches_array_start, tree_offset.into(), &data, 0, 0, 0);
+        let mut cb_data = BVHDivNodesData::new(branches_array_start, tree_offset, &data, 0, 0, 0);
 
         // loop tree levels, (log N) loops
         let mut i = 1;
         let mut depth = 1;
         while i <= num_branches {
-            let first_of_next_level: usize = i * tree_type as usize + tree_offset as usize;
+            let first_of_next_level: usize =
+                ((i as isize * tree_type as isize) + tree_offset) as usize;
             // index of last branch on this level
             let i_stop = first_of_next_level.min(num_branches + 1);
 
