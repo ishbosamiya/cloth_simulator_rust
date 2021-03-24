@@ -591,7 +591,7 @@ impl<T> BVHTree<T> {
         }
     }
 
-    pub fn update(
+    pub fn update_node(
         &mut self,
         node_index: usize,
         co_many: Vec<glm::TVec3<Scalar>>,
@@ -622,6 +622,47 @@ impl<T> BVHTree<T> {
         }
 
         return Ok(());
+    }
+
+    fn node_join(&mut self, nodes_index: usize) {
+        let node_index = self.nodes[nodes_index];
+        {
+            let node = self.node_array.get_mut(node_index.0).unwrap();
+            node.min_max_init(self.start_axis, self.stop_axis);
+        }
+
+        for i in 0..self.tree_type {
+            let i = i as usize;
+            let node = self.node_array.get(node_index.0).unwrap();
+            let child_index = node.children[i];
+            let (node, child) = self.node_array.get2_mut(node_index.0, child_index.0);
+            if let Some(child) = child {
+                let node = node.unwrap();
+                for axis_iter in self.start_axis..self.stop_axis {
+                    let axis_iter = axis_iter as usize;
+                    // update minimum
+                    if child.bv[(2 * axis_iter)] < node.bv[(2 * axis_iter)] {
+                        node.bv[(2 * axis_iter)] = child.bv[(2 * axis_iter)];
+                    }
+                    // update maximum
+                    if child.bv[(2 * axis_iter) + 1] > node.bv[(2 * axis_iter) + 1] {
+                        node.bv[(2 * axis_iter) + 1] = child.bv[(2 * axis_iter) + 1];
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    pub fn update_tree(&mut self) {
+        let root_start = self.totleaf;
+        let mut index = self.totleaf + self.totbranch - 1;
+
+        while index >= root_start {
+            self.node_join(index);
+            index -= 1;
+        }
     }
 
     fn recursive_draw(

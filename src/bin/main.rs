@@ -183,6 +183,7 @@ fn main() {
         if run_sim {
             simulation.next_step(10);
         }
+        simulation.cloth.update_bvh();
 
         let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
         simulation.cloth.draw(&mut draw_data).unwrap();

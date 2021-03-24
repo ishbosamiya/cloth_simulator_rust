@@ -492,6 +492,26 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
 
         self.bvh = Some(bvh);
     }
+
+    /// This only works if the mesh connectivity remains the same,
+    /// there isn't a way to know the mesh connectivity change easily
+    /// as of right now so there will be some unexpected errors if
+    /// there has been change in connectivity
+    pub fn update_bvh(&mut self) {
+        for (i, (_, face)) in self.faces.iter().enumerate() {
+            let mut co = Vec::new();
+            for vert_index in face.get_verts() {
+                let vert = self.get_vert(*vert_index).unwrap();
+                let node = self.get_node(vert.node.unwrap()).unwrap();
+                co.push(node.pos);
+            }
+            let bvh = self.bvh.as_mut().unwrap();
+            bvh.update_node(i, co, Vec::new()).unwrap();
+        }
+
+        let bvh = self.bvh.as_mut().unwrap();
+        bvh.update_tree();
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
