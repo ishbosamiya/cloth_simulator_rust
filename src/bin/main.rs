@@ -8,6 +8,7 @@ use rand::random;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use cloth_simulator_rust::bvh::BVHDrawData;
 use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::drawable::Drawable;
 use cloth_simulator_rust::gpu_immediate::*;
@@ -107,6 +108,7 @@ fn main() {
     let mut run_sim = false;
     let mut draw_linear_constraints = false;
     let mut draw_wireframe = false;
+    let mut bvh_draw_level = 0;
 
     let mut imm = GPUImmediate::new();
 
@@ -125,6 +127,7 @@ fn main() {
                 &mut simulation,
                 &mut draw_wireframe,
                 &mut draw_linear_constraints,
+                &mut bvh_draw_level,
                 &mut run_sim,
             );
         }
@@ -190,6 +193,14 @@ fn main() {
         let mut draw_data =
             ConstraintDrawData::new(&mut imm, &smooth_3d_color_shader, draw_linear_constraints);
         simulation.draw(&mut draw_data).unwrap();
+        let mut draw_data = BVHDrawData::new(&mut imm, &smooth_3d_color_shader, bvh_draw_level);
+        simulation
+            .cloth
+            .get_bvh()
+            .as_ref()
+            .unwrap()
+            .draw(&mut draw_data)
+            .unwrap();
 
         window.borrow_mut().swap_buffers();
 
@@ -205,6 +216,7 @@ fn handle_window_event(
     simulation: &mut Simulation,
     r_draw_wireframe: &mut bool,
     r_draw_linear: &mut bool,
+    r_bvh_draw_level: &mut usize,
     r_run_sim: &mut bool,
 ) {
     let cursor = window.borrow_mut().get_cursor_pos();
@@ -228,6 +240,16 @@ fn handle_window_event(
         }
         glfw::WindowEvent::Key(Key::W, _, Action::Press, _) => {
             *r_draw_wireframe = !*r_draw_wireframe;
+        }
+        glfw::WindowEvent::Key(Key::N, _, Action::Press, _) => {
+            *r_bvh_draw_level += 1;
+            println!("bvh_draw_level now at: {}", *r_bvh_draw_level);
+        }
+        glfw::WindowEvent::Key(Key::P, _, Action::Press, _) => {
+            if *r_bvh_draw_level != 0 {
+                *r_bvh_draw_level -= 1;
+                println!("bvh_draw_level now at: {}", *r_bvh_draw_level);
+            }
         }
         _ => {}
     }

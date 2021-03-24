@@ -196,6 +196,10 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         return self.nodes.get_mut(index.0);
     }
 
+    pub fn get_bvh(&self) -> &Option<BVHTree<FaceIndex>> {
+        return &self.bvh;
+    }
+
     /// Adds an empty Node and gives back mutable reference to it
     ///
     /// Use with caution

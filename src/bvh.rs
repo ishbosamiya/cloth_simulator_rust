@@ -1,6 +1,10 @@
 use generational_arena::{Arena, Index};
 use nalgebra_glm as glm;
 
+use crate::drawable::Drawable;
+use crate::gpu_immediate::*;
+use crate::shader::Shader;
+
 const MAX_TREETYPE: u8 = 32;
 
 lazy_static! {
@@ -613,6 +617,151 @@ impl<T> BVHTree<T> {
             node.bv[(2 * axis_iter)] -= self.epsilon; // min
             node.bv[(2 * axis_iter) + 1] += self.epsilon; // max
         }
+
+        return Ok(());
+    }
+
+    fn recursive_draw(
+        &self,
+        node_index: BVHNodeIndex,
+        pos_attr: usize,
+        color_attr: usize,
+        imm: &mut GPUImmediate,
+        draw_level: usize,
+        current_level: usize,
+    ) {
+        let node = self.node_array.get(node_index.0).unwrap();
+
+        if current_level == draw_level {
+            let x1 = node.bv[(2 * 0) + 0] as f32;
+            let x2 = node.bv[(2 * 0) + 1] as f32;
+            let y1 = node.bv[(2 * 1) + 0] as f32;
+            let y2 = node.bv[(2 * 1) + 1] as f32;
+            let z1 = node.bv[(2 * 2) + 0] as f32;
+            let z2 = node.bv[(2 * 2) + 1] as f32;
+
+            draw_box(imm, x1, x2, y1, y2, z1, z2, pos_attr, color_attr);
+
+            return; // don't need to go below this level anyway to render
+        }
+
+        if node.totnode != 0 {
+            for i in 0..self.tree_type {
+                let child_index = node.children[i as usize];
+                if let Some(_) = self.node_array.get(child_index.0) {
+                    self.recursive_draw(
+                        child_index,
+                        pos_attr,
+                        color_attr,
+                        imm,
+                        draw_level,
+                        current_level + 1,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn draw_line(
+    imm: &mut GPUImmediate,
+    p1: &glm::Vec3,
+    p2: &glm::Vec3,
+    pos_attr: usize,
+    color_attr: usize,
+) {
+    imm.attr_4f(color_attr, 0.8, 0.3, 0.8, 1.0);
+    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+    imm.attr_4f(color_attr, 0.8, 0.3, 0.8, 1.0);
+    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+}
+
+fn draw_box(
+    imm: &mut GPUImmediate,
+    x1: f32,
+    x2: f32,
+    y1: f32,
+    y2: f32,
+    z1: f32,
+    z2: f32,
+    pos_attr: usize,
+    color_attr: usize,
+) {
+    let v1 = glm::vec3(x1, y1, z1);
+    let v2 = glm::vec3(x2, y1, z1);
+    let v3 = glm::vec3(x2, y2, z1);
+    let v4 = glm::vec3(x1, y2, z1);
+    let v5 = glm::vec3(x1, y1, z2);
+    let v6 = glm::vec3(x2, y1, z2);
+    let v7 = glm::vec3(x2, y2, z2);
+    let v8 = glm::vec3(x1, y2, z2);
+
+    draw_line(imm, &v1, &v2, pos_attr, color_attr);
+    draw_line(imm, &v2, &v3, pos_attr, color_attr);
+    draw_line(imm, &v3, &v4, pos_attr, color_attr);
+    draw_line(imm, &v4, &v1, pos_attr, color_attr);
+
+    draw_line(imm, &v5, &v6, pos_attr, color_attr);
+    draw_line(imm, &v6, &v7, pos_attr, color_attr);
+    draw_line(imm, &v7, &v8, pos_attr, color_attr);
+    draw_line(imm, &v8, &v5, pos_attr, color_attr);
+
+    draw_line(imm, &v1, &v5, pos_attr, color_attr);
+    draw_line(imm, &v2, &v6, pos_attr, color_attr);
+    draw_line(imm, &v3, &v7, pos_attr, color_attr);
+    draw_line(imm, &v4, &v8, pos_attr, color_attr);
+}
+
+pub struct BVHDrawData<'a> {
+    imm: &'a mut GPUImmediate,
+    shader: &'a Shader,
+    draw_level: usize,
+}
+
+impl<'a> BVHDrawData<'a> {
+    pub fn new(imm: &'a mut GPUImmediate, shader: &'a Shader, draw_level: usize) -> Self {
+        return Self {
+            imm,
+            shader,
+            draw_level,
+        };
+    }
+}
+
+impl<T> Drawable<BVHDrawData<'_>, ()> for BVHTree<T> {
+    fn draw(&self, draw_data: &mut BVHDrawData) -> Result<(), ()> {
+        let imm = &mut draw_data.imm;
+        let shader = &draw_data.shader;
+        let draw_level = draw_data.draw_level;
+        shader.use_shader();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        // TODO(ish: figure out the actual number of verts that will be used
+        imm.begin_at_most(GPUPrimType::Lines, self.totleaf * 12, shader);
+
+        self.recursive_draw(
+            self.nodes[self.totleaf],
+            pos_attr,
+            color_attr,
+            imm,
+            draw_level,
+            0,
+        );
+
+        imm.end();
 
         return Ok(());
     }
