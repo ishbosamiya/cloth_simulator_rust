@@ -360,6 +360,7 @@ impl<T> BVHTree<T> {
                 node_a_i = self.node_array.get(self.nodes[i].0).unwrap();
             }
 
+            j -= 1;
             let mut node_a_j = self.node_array.get(self.nodes[j].0).unwrap();
             while node_x.bv[axis] < node_a_j.bv[axis] {
                 j -= 1;
