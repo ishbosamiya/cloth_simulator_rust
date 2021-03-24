@@ -490,6 +490,7 @@ impl<T> BVHTree<T> {
         self.split_leafs(&nth_positions, self.tree_type.into(), split_axis.into());
 
         // setup children and totnode counters
+        let mut totnode = 0;
         for k in 0..self.tree_type {
             let k = k as usize;
             let child_index =
@@ -521,9 +522,11 @@ impl<T> BVHTree<T> {
             } else {
                 break;
             }
+            totnode += 1;
         }
 
-        // TODO(ish):
+        let parent = self.node_array.get_mut(parent_index.0).unwrap();
+        parent.totnode = totnode;
     }
 
     fn non_recursive_bvh_div_nodes(&mut self, branches_array_start: usize, num_leafs: usize) {
