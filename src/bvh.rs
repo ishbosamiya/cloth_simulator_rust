@@ -29,6 +29,12 @@ type Scalar = f64;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct BVHNodeIndex(pub Index);
 
+impl BVHNodeIndex {
+    fn unknown() -> Self {
+        return Self(Index::from_raw_parts(usize::MAX, u64::MAX));
+    }
+}
+
 struct BVHNode<T> {
     children: Vec<BVHNodeIndex>,  // Indices of the child nodes
     parent: Option<BVHNodeIndex>, // Parent index
@@ -219,7 +225,8 @@ impl<T> BVHTree<T> {
 
         let numnodes =
             max_size + implicit_needed_branches(tree_type, max_size) + tree_type as usize;
-        let nodes = Vec::with_capacity(numnodes);
+        let mut nodes = Vec::with_capacity(numnodes);
+        nodes.resize(numnodes, BVHNodeIndex::unknown());
         let mut node_array = Arena::with_capacity(numnodes);
 
         for _ in 0..numnodes {
