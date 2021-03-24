@@ -752,8 +752,7 @@ impl<T> Drawable<BVHDrawData<'_>, ()> for BVHTree<T> {
             GPUVertFetchMode::Float,
         );
 
-        // TODO(ish: figure out the actual number of verts that will be used
-        imm.begin_at_most(GPUPrimType::Lines, self.totleaf * 12, shader);
+        imm.begin_at_most(GPUPrimType::Lines, self.nodes.len() * 12 * 2, shader);
 
         self.recursive_draw(
             self.nodes[self.totleaf],
