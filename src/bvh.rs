@@ -333,11 +333,13 @@ impl<T> BVHTree<T> {
             let mut j = i;
             let node_t_index = self.nodes[i];
             let node_t = self.node_array.get(node_t_index.0).unwrap();
-            let mut node_j_minus_one = self.node_array.get(self.nodes[j - 1].0).unwrap();
-            while (j != lo) && (node_t.bv[axis] < node_j_minus_one.bv[axis]) {
-                self.nodes[j] = self.nodes[j - 1];
-                j -= 1;
-                node_j_minus_one = self.node_array.get(self.nodes[j - 1].0).unwrap();
+            if j != lo {
+                let mut node_j_minus_one = self.node_array.get(self.nodes[j - 1].0).unwrap();
+                while (j != lo) && (node_t.bv[axis] < node_j_minus_one.bv[axis]) {
+                    self.nodes[j] = self.nodes[j - 1];
+                    j -= 1;
+                    node_j_minus_one = self.node_array.get(self.nodes[j - 1].0).unwrap();
+                }
             }
             self.nodes[j] = node_t_index;
         }
