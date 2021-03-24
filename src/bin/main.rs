@@ -102,6 +102,7 @@ fn main() {
     cloth
         .read(std::path::Path::new("models/plane_subd_02.obj"))
         .unwrap();
+    cloth.build_bvh(0.01);
     let mut simulation = Simulation::new(cloth, 1.0, 1.0 / 30.0, 800.0);
     let mut run_sim = false;
     let mut draw_linear_constraints = false;

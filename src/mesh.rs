@@ -5,6 +5,7 @@ use nalgebra_glm as glm;
 use std::convert::TryInto;
 use std::path::Path;
 
+use crate::bvh::BVHTree;
 use crate::drawable::Drawable;
 use crate::gl_mesh::{GLMesh, GLVert};
 use crate::gpu_immediate::*;
@@ -73,6 +74,7 @@ pub struct Mesh<END, EVD, EED, EFD> {
     faces: Arena<Face<EFD>>,
 
     gl_mesh: Option<GLMesh>,
+    bvh: Option<BVHTree<FaceIndex>>,
 }
 
 /// Index of Node in Mesh.nodes
@@ -126,6 +128,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             faces: Arena::new(),
 
             gl_mesh: None,
+            bvh: None,
         };
     }
 
@@ -466,6 +469,24 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         }
 
         self.gl_mesh = Some(GLMesh::new(gl_verts, gl_indices));
+    }
+
+    pub fn build_bvh(&mut self, epsilon: f64) {
+        let mut bvh = BVHTree::new(self.faces.len(), epsilon, 4, 8);
+
+        for (face_index, face) in self.get_faces() {
+            let mut co = Vec::new();
+            for vert_index in face.get_verts() {
+                let vert = self.get_vert(*vert_index).unwrap();
+                let node = self.get_node(vert.node.unwrap()).unwrap();
+                co.push(node.pos);
+            }
+            bvh.insert(FaceIndex(face_index), co);
+        }
+
+        bvh.balance();
+
+        self.bvh = Some(bvh);
     }
 }
 
