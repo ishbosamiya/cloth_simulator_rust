@@ -455,10 +455,10 @@ impl GPUImmediate {
 
         let buffer_bytes_used;
         if self.strict_vertex_len {
-            assert_eq!(self.vertex_idx, self.vertex_len);
+            assert_eq!(self.vertex_idx, self.vertex_len, "number of verts is not equal to promised vertex_len; self.vertex_idx: {}, self.vertex_len: {}", self.vertex_idx, self.vertex_len);
             buffer_bytes_used = self.buffer_bytes_mapped;
         } else {
-            assert!(self.vertex_idx <= self.vertex_len);
+            assert!(self.vertex_idx <= self.vertex_len, "number of verts exceeded promised vertex_len; self.vertex_idx: {}, self.vertex_len: {}", self.vertex_idx, self.vertex_len);
 
             if self.vertex_idx == self.vertex_len {
                 buffer_bytes_used = self.buffer_bytes_mapped;
