@@ -1,4 +1,4 @@
-use cloth_simulator_rust::mesh::Mesh;
+use cloth_simulator_rust::mesh::simple::Mesh;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 pub fn mesh_generate_gl_mesh_benchmark(c: &mut Criterion) {
