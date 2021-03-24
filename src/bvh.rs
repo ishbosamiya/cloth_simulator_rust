@@ -236,7 +236,8 @@ impl<T> BVHTree<T> {
         for i in 0..numnodes {
             let node = node_array.get_unknown_gen_mut(i).unwrap().0;
             node.bv.resize(axis.into(), 0.0);
-            // TODO(ish): might have to initialize the node.children here but should be possible elsewhere
+            node.children
+                .resize(tree_type.into(), BVHNodeIndex::unknown());
         }
 
         return Self {
