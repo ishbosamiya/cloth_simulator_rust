@@ -61,8 +61,8 @@ impl<T> BVHNode<T> {
     fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
         let bv = &mut self.bv;
         for axis_iter in start_axis..stop_axis {
-            bv[(axis_iter + 0) as usize] = Scalar::MAX;
-            bv[(axis_iter + 1) as usize] = -Scalar::MAX;
+            bv[((2 * axis_iter) + 0) as usize] = Scalar::MAX;
+            bv[((2 * axis_iter) + 1) as usize] = -Scalar::MAX;
         }
     }
 
