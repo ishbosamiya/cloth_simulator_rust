@@ -39,7 +39,10 @@ impl BVHNodeIndex {
     }
 }
 
-struct BVHNode<T> {
+struct BVHNode<T>
+where
+    T: Copy,
+{
     children: Vec<BVHNodeIndex>,  // Indices of the child nodes
     parent: Option<BVHNodeIndex>, // Parent index
 
@@ -49,7 +52,10 @@ struct BVHNode<T> {
     main_axis: u8,         // Axis used to split this node
 }
 
-impl<T> BVHNode<T> {
+impl<T> BVHNode<T>
+where
+    T: Copy,
+{
     fn new() -> Self {
         return Self {
             children: Vec::new(),
@@ -96,6 +102,21 @@ impl<T> BVHNode<T> {
             }
         }
     }
+
+    fn overlap_test(&self, other: &BVHNode<T>, start_axis: u8, stop_axis: u8) -> bool {
+        let bv1 = &self.bv;
+        let bv2 = &other.bv;
+        for axis_iter in start_axis..stop_axis {
+            let axis_iter = axis_iter as usize;
+            if bv1[(2 * axis_iter)] > bv2[(2 * axis_iter) + 1]
+                || bv2[(2 * axis_iter)] > bv1[(2 * axis_iter) + 1]
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 
 #[derive(Debug)]
@@ -115,7 +136,10 @@ impl std::fmt::Display for BVHError {
 
 impl std::error::Error for BVHError {}
 
-pub struct BVHTree<T> {
+pub struct BVHTree<T>
+where
+    T: Copy,
+{
     nodes: Vec<BVHNodeIndex>,
     node_array: Arena<BVHNode<T>>, // Where the actual nodes are stored
 
@@ -124,7 +148,7 @@ pub struct BVHTree<T> {
     totbranch: usize,
     start_axis: u8,
     stop_axis: u8,
-    _axis: u8,     // kdop type (6 => OBB, 8 => AABB, etc.)
+    axis: u8,      // kdop type (6 => OBB, 8 => AABB, etc.)
     tree_type: u8, // Type of tree (4 => QuadTree, etc.)
 }
 
@@ -193,7 +217,27 @@ impl<'a> BVHDivNodesData<'a> {
     }
 }
 
-impl<T> BVHTree<T> {
+pub struct BVHTreeOverlap<T>
+where
+    T: Copy,
+{
+    pub index_1: T,
+    pub index_2: T,
+}
+
+impl<T> BVHTreeOverlap<T>
+where
+    T: Copy,
+{
+    fn new(index_1: T, index_2: T) -> Self {
+        return Self { index_1, index_2 };
+    }
+}
+
+impl<T> BVHTree<T>
+where
+    T: Copy,
+{
     pub fn new(max_size: usize, epsilon: Scalar, tree_type: u8, axis: u8) -> Self {
         assert!(
             tree_type >= 2 && tree_type <= MAX_TREETYPE,
@@ -253,7 +297,7 @@ impl<T> BVHTree<T> {
             totbranch: 0,
             start_axis,
             stop_axis,
-            _axis: axis,
+            axis,
             tree_type,
         };
     }
@@ -665,6 +709,209 @@ impl<T> BVHTree<T> {
         }
     }
 
+    fn overlap_thread_num(&self) -> usize {
+        let node = self.node_array.get(self.nodes[self.totleaf].0).unwrap();
+        return self.tree_type.min(node.totnode).into();
+    }
+
+    fn overlap_traverse_callback<F>(
+        &self,
+        other: &BVHTree<T>,
+        node_1_index: BVHNodeIndex,
+        node_2_index: BVHNodeIndex,
+        start_axis: u8,
+        stop_axis: u8,
+        callback: &F,
+        r_overlap_pairs: &mut Vec<BVHTreeOverlap<T>>,
+    ) where
+        F: Fn(T, T) -> bool,
+    {
+        let node_1 = self.node_array.get(node_1_index.0).unwrap();
+        let node_2 = other.node_array.get(node_2_index.0).unwrap();
+        if node_1.overlap_test(node_2, start_axis, stop_axis) {
+            // check if node_1 is a leaf node
+            if node_1.totnode == 0 {
+                // check if node_2 is a leaf node
+                if node_2.totnode == 0 {
+                    // the two nodes if equal, all the children will
+                    // also match. This happens when overlap between
+                    // the same tree is checked for.
+                    if node_1_index == node_2_index {
+                        return;
+                    }
+
+                    // Only difference to BVHTree::overlap_traverse
+                    if callback(node_1.elem_index.unwrap(), node_2.elem_index.unwrap()) {
+                        let overlap = BVHTreeOverlap::new(
+                            node_1.elem_index.unwrap(),
+                            node_2.elem_index.unwrap(),
+                        );
+                        r_overlap_pairs.push(overlap);
+                    }
+                } else {
+                    for j in 0..other.tree_type {
+                        let child_index = node_2.children[j as usize];
+                        if let Some(_) = other.node_array.get(child_index.0) {
+                            self.overlap_traverse_callback(
+                                other,
+                                node_1_index,
+                                child_index,
+                                start_axis,
+                                stop_axis,
+                                callback,
+                                r_overlap_pairs,
+                            );
+                        }
+                    }
+                }
+            } else {
+                for j in 0..self.tree_type {
+                    let child_index = node_1.children[j as usize];
+                    if let Some(_) = self.node_array.get(child_index.0) {
+                        self.overlap_traverse_callback(
+                            other,
+                            child_index,
+                            node_2_index,
+                            start_axis,
+                            stop_axis,
+                            callback,
+                            r_overlap_pairs,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    fn overlap_traverse(
+        &self,
+        other: &BVHTree<T>,
+        node_1_index: BVHNodeIndex,
+        node_2_index: BVHNodeIndex,
+        start_axis: u8,
+        stop_axis: u8,
+        r_overlap_pairs: &mut Vec<BVHTreeOverlap<T>>,
+    ) {
+        let node_1 = self.node_array.get(node_1_index.0).unwrap();
+        let node_2 = other.node_array.get(node_2_index.0).unwrap();
+        if node_1.overlap_test(node_2, start_axis, stop_axis) {
+            // check if node_1 is a leaf node
+            if node_1.totnode == 0 {
+                // check if node_2 is a leaf node
+                if node_2.totnode == 0 {
+                    // the two nodes if equal, all the children will
+                    // also match. This happens when overlap between
+                    // the same tree is checked for.
+                    if node_1_index == node_2_index {
+                        return;
+                    }
+
+                    let overlap =
+                        BVHTreeOverlap::new(node_1.elem_index.unwrap(), node_2.elem_index.unwrap());
+                    r_overlap_pairs.push(overlap);
+                } else {
+                    for j in 0..other.tree_type {
+                        let child_index = node_2.children[j as usize];
+                        if let Some(_) = other.node_array.get(child_index.0) {
+                            self.overlap_traverse(
+                                other,
+                                node_1_index,
+                                child_index,
+                                start_axis,
+                                stop_axis,
+                                r_overlap_pairs,
+                            );
+                        }
+                    }
+                }
+            } else {
+                for j in 0..self.tree_type {
+                    let child_index = node_1.children[j as usize];
+                    if let Some(_) = self.node_array.get(child_index.0) {
+                        self.overlap_traverse(
+                            other,
+                            child_index,
+                            node_2_index,
+                            start_axis,
+                            stop_axis,
+                            r_overlap_pairs,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn overlap<F>(
+        &self,
+        other: &BVHTree<T>,
+        callback: Option<&F>,
+    ) -> Option<Vec<BVHTreeOverlap<T>>>
+    where
+        F: Fn(T, T) -> bool,
+    {
+        // TODO(ish): add multithreading support
+        let use_threading = false;
+        let root_node_len = self.overlap_thread_num();
+        let _thread_num;
+        if use_threading {
+            _thread_num = root_node_len;
+        } else {
+            _thread_num = 1;
+        }
+
+        assert!(
+            !(self.axis != other.axis
+                && (self.axis == 14 || other.axis == 14)
+                && (self.axis == 18 || other.axis == 18)),
+            "trees not compatible for overlap check"
+        );
+
+        let root_1_index = self.nodes[self.totleaf];
+        let root_2_index = other.nodes[other.totleaf];
+
+        let start_axis = self.start_axis.min(other.start_axis);
+        let stop_axis = self.stop_axis.min(other.stop_axis);
+
+        // fast check root nodes for collision before expensive split and traversal
+        let root_1 = self.node_array.get(root_1_index.0).unwrap();
+        let root_2 = other.node_array.get(root_2_index.0).unwrap();
+        if !root_1.overlap_test(root_2, start_axis, stop_axis) {
+            return None;
+        }
+
+        if use_threading {
+            panic!("Multithreading not implemented yet for BVHTree::overlap()");
+        } else {
+            let mut overlap_pairs = Vec::new();
+            if let Some(callback) = callback {
+                self.overlap_traverse_callback(
+                    other,
+                    root_1_index,
+                    root_2_index,
+                    start_axis,
+                    stop_axis,
+                    callback,
+                    &mut overlap_pairs,
+                );
+            } else {
+                self.overlap_traverse(
+                    other,
+                    root_1_index,
+                    root_2_index,
+                    start_axis,
+                    stop_axis,
+                    &mut overlap_pairs,
+                );
+            }
+            if overlap_pairs.len() == 0 {
+                return None;
+            } else {
+                return Some(overlap_pairs);
+            }
+        }
+    }
+
     fn recursive_draw(
         &self,
         node_index: BVHNodeIndex,
@@ -772,7 +1019,10 @@ impl<'a> BVHDrawData<'a> {
     }
 }
 
-impl<T> Drawable<BVHDrawData<'_>, ()> for BVHTree<T> {
+impl<T> Drawable<BVHDrawData<'_>, ()> for BVHTree<T>
+where
+    T: Copy,
+{
     fn draw(&self, draw_data: &mut BVHDrawData) -> Result<(), ()> {
         let imm = &mut draw_data.imm;
         let shader = &draw_data.shader;
