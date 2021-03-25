@@ -8,7 +8,7 @@ use rand::random;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use cloth_simulator_rust::bvh::BVHDrawData;
+use cloth_simulator_rust::bvh::{BVHDrawData, BVHOverlapDrawData};
 use cloth_simulator_rust::camera::WindowCamera;
 use cloth_simulator_rust::drawable::Drawable;
 use cloth_simulator_rust::gpu_immediate::*;
@@ -185,6 +185,9 @@ fn main() {
         }
         simulation.cloth.update_bvh();
 
+        let bvh = simulation.cloth.get_bvh().as_ref().unwrap();
+        let overlap = bvh.overlap(bvh, Some(&|_, _| return true));
+
         let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
         simulation.cloth.draw(&mut draw_data).unwrap();
         if draw_wireframe {
@@ -202,6 +205,17 @@ fn main() {
             .unwrap()
             .draw(&mut draw_data)
             .unwrap();
+
+        if let Some(overlap) = overlap {
+            let mut draw_data = BVHOverlapDrawData::new(
+                &mut imm,
+                &smooth_3d_color_shader,
+                &simulation.cloth,
+                &simulation.cloth,
+            );
+
+            overlap.draw(&mut draw_data).unwrap();
+        }
 
         window.borrow_mut().swap_buffers();
 
