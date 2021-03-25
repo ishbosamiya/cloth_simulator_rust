@@ -109,6 +109,7 @@ fn main() {
     let mut draw_linear_constraints = false;
     let mut draw_wireframe = false;
     let mut bvh_draw_level = 0;
+    let mut bvh_draw_self_overlap = false;
 
     let mut imm = GPUImmediate::new();
 
@@ -128,6 +129,7 @@ fn main() {
                 &mut draw_wireframe,
                 &mut draw_linear_constraints,
                 &mut bvh_draw_level,
+                &mut bvh_draw_self_overlap,
                 &mut run_sim,
             );
         }
@@ -235,7 +237,9 @@ fn main() {
                 &simulation.cloth,
             );
 
-            overlap.draw(&mut draw_data).unwrap();
+            if bvh_draw_self_overlap {
+                overlap.draw(&mut draw_data).unwrap();
+            }
         }
 
         window.borrow_mut().swap_buffers();
@@ -253,6 +257,7 @@ fn handle_window_event(
     r_draw_wireframe: &mut bool,
     r_draw_linear: &mut bool,
     r_bvh_draw_level: &mut usize,
+    r_bvh_draw_self_overlap: &mut bool,
     r_run_sim: &mut bool,
 ) {
     let cursor = window.borrow_mut().get_cursor_pos();
@@ -280,6 +285,10 @@ fn handle_window_event(
         glfw::WindowEvent::Key(Key::N, _, Action::Press, _) => {
             *r_bvh_draw_level += 1;
             println!("bvh_draw_level now at: {}", *r_bvh_draw_level);
+        }
+        glfw::WindowEvent::Key(Key::O, _, Action::Press, _) => {
+            *r_bvh_draw_self_overlap = !*r_bvh_draw_self_overlap;
+            println!("bvh_self_overlap: {}", *r_bvh_draw_self_overlap);
         }
         glfw::WindowEvent::Key(Key::P, _, Action::Press, _) => {
             if *r_bvh_draw_level != 0 {
