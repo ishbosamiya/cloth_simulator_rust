@@ -186,7 +186,28 @@ fn main() {
         simulation.cloth.update_bvh();
 
         let bvh = simulation.cloth.get_bvh().as_ref().unwrap();
-        let overlap = bvh.overlap(bvh, Some(&|_, _| return true));
+        let overlap = bvh.overlap(
+            bvh,
+            Some(&|face_1_index, face_2_index| {
+                if face_1_index == face_2_index {
+                    return false;
+                }
+
+                let cloth = &simulation.cloth;
+                let face_1 = cloth.get_face(face_1_index).unwrap();
+                let face_2 = cloth.get_face(face_2_index).unwrap();
+
+                for face_1_vert in face_1.get_verts() {
+                    for face_2_vert in face_2.get_verts() {
+                        if face_1_vert == face_2_vert {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }),
+        );
 
         let mut draw_data = MeshDrawData::new(&mut imm, &directional_light_shader);
         simulation.cloth.draw(&mut draw_data).unwrap();
