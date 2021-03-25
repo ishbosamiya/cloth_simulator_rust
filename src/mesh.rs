@@ -5,7 +5,7 @@ use nalgebra_glm as glm;
 use std::convert::TryInto;
 use std::path::Path;
 
-use crate::bvh::BVHTree;
+use crate::bvh::{BVHTree, AABB};
 use crate::drawable::Drawable;
 use crate::gl_mesh::{GLMesh, GLVert};
 use crate::gpu_immediate::*;
@@ -673,6 +673,40 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
         imm.end();
 
         return Ok(());
+    }
+}
+
+impl<END, EVD, EED, EFD> AABB for Mesh<END, EVD, EED, EFD> {
+    type ElementIndex = FaceIndex;
+
+    fn give_aabb(&self, face_index: Self::ElementIndex) -> Vec<f64> {
+        let epsilon = 0.01;
+        let mut bv = vec![
+            f64::MAX,
+            -f64::MAX,
+            f64::MAX,
+            -f64::MAX,
+            f64::MAX,
+            -f64::MAX,
+        ];
+        let face = self.get_face(face_index).unwrap();
+        for vert_index in face.get_verts() {
+            let vert = self.get_vert(*vert_index).unwrap();
+            let node = self.get_node(vert.node.unwrap()).unwrap();
+            let pos = &node.pos;
+
+            for axis_iter in 0..3 {
+                let new_min_max = pos[axis_iter];
+                if new_min_max < bv[(2 * axis_iter)] {
+                    bv[(2 * axis_iter)] = new_min_max - epsilon;
+                }
+                if new_min_max > bv[(2 * axis_iter) + 1] {
+                    bv[(2 * axis_iter) + 1] = new_min_max + epsilon;
+                }
+            }
+        }
+
+        return bv;
     }
 }
 
