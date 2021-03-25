@@ -1126,19 +1126,22 @@ pub trait AABB {
 pub struct BVHOverlapDrawData<'a, T> {
     imm: &'a mut GPUImmediate,
     shader: &'a Shader,
-    give_aabb: &'a dyn AABB<ElementIndex = T>,
+    give_aabb_1: &'a dyn AABB<ElementIndex = T>,
+    give_aabb_2: &'a dyn AABB<ElementIndex = T>,
 }
 
 impl<'a, T> BVHOverlapDrawData<'a, T> {
     pub fn new(
         imm: &'a mut GPUImmediate,
         shader: &'a Shader,
-        give_aabb: &'a dyn AABB<ElementIndex = T>,
+        give_aabb_1: &'a dyn AABB<ElementIndex = T>,
+        give_aabb_2: &'a dyn AABB<ElementIndex = T>,
     ) -> Self {
         return Self {
             imm,
             shader,
-            give_aabb,
+            give_aabb_1,
+            give_aabb_2,
         };
     }
 }
@@ -1150,7 +1153,8 @@ where
     fn draw(&self, draw_data: &mut BVHOverlapDrawData<T>) -> Result<(), ()> {
         let imm = &mut draw_data.imm;
         let shader = &draw_data.shader;
-        let give_aabb = &draw_data.give_aabb;
+        let give_aabb_1 = &draw_data.give_aabb_1;
+        let give_aabb_2 = &draw_data.give_aabb_2;
         shader.use_shader();
 
         let format = imm.get_cleared_vertex_format();
@@ -1174,7 +1178,7 @@ where
 
         for overlap in self {
             let color = glm::vec4(random(), random(), random(), 0.3);
-            let bv = give_aabb.give_aabb(overlap.index_1);
+            let bv = give_aabb_1.give_aabb(overlap.index_1);
             assert_eq!(bv.len(), 6);
             draw_box_fill(
                 imm,
@@ -1189,7 +1193,7 @@ where
                 color_attr,
             );
 
-            let bv = give_aabb.give_aabb(overlap.index_2);
+            let bv = give_aabb_2.give_aabb(overlap.index_2);
             assert_eq!(bv.len(), 6);
             draw_box_fill(
                 imm,
