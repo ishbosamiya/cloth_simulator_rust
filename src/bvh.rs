@@ -1,6 +1,6 @@
 use generational_arena::{Arena, Index};
 use nalgebra_glm as glm;
-use rand::random;
+use rand::{Rng, SeedableRng};
 
 use crate::drawable::Drawable;
 use crate::gpu_immediate::*;
@@ -1176,13 +1176,15 @@ where
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
         }
 
+        let mut rng = rand_chacha::ChaChaRng::seed_from_u64(10);
+
         // Need self.len() (number of overlap pairs) * 6 (number of
         // faces in a box) * 2 (triangles per face) * 3 (verts per
         // triangle) * 2 (both boxes)
         imm.begin(GPUPrimType::Tris, self.len() * 6 * 2 * 3 * 2, shader);
 
         for overlap in self {
-            let color = glm::vec4(random(), random(), random(), 0.3);
+            let color = glm::vec4(rng.gen(), rng.gen(), rng.gen(), 0.3);
             let bv = give_aabb_1.give_aabb(overlap.index_1);
             assert_eq!(bv.len(), 6);
             draw_box_fill(

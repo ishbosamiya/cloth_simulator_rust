@@ -118,6 +118,7 @@ dependencies = [
  "nalgebra",
  "nalgebra-glm",
  "rand 0.8.2",
+ "rand_chacha 0.3.0",
 ]
 
 [[package]]
