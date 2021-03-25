@@ -1,5 +1,6 @@
 use generational_arena::{Arena, Index};
 use nalgebra_glm as glm;
+use rand::random;
 
 use crate::drawable::Drawable;
 use crate::gpu_immediate::*;
@@ -1003,6 +1004,63 @@ fn draw_box(
     draw_line(imm, &v4, &v8, pos_attr, color_attr);
 }
 
+fn draw_triangle(
+    imm: &mut GPUImmediate,
+    p1: &glm::Vec3,
+    p2: &glm::Vec3,
+    p3: &glm::Vec3,
+    color: &glm::Vec4,
+    pos_attr: usize,
+    color_attr: usize,
+) {
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+    imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
+}
+
+fn draw_box_fill(
+    imm: &mut GPUImmediate,
+    x1: f32,
+    x2: f32,
+    y1: f32,
+    y2: f32,
+    z1: f32,
+    z2: f32,
+    color: &glm::Vec4,
+    pos_attr: usize,
+    color_attr: usize,
+) {
+    let v1 = glm::vec3(x1, y1, z1);
+    let v2 = glm::vec3(x2, y1, z1);
+    let v3 = glm::vec3(x2, y2, z1);
+    let v4 = glm::vec3(x1, y2, z1);
+    let v5 = glm::vec3(x1, y1, z2);
+    let v6 = glm::vec3(x2, y1, z2);
+    let v7 = glm::vec3(x2, y2, z2);
+    let v8 = glm::vec3(x1, y2, z2);
+
+    draw_triangle(imm, &v2, &v6, &v5, color, pos_attr, color_attr);
+    draw_triangle(imm, &v5, &v1, &v2, color, pos_attr, color_attr);
+
+    draw_triangle(imm, &v3, &v7, &v6, color, pos_attr, color_attr);
+    draw_triangle(imm, &v6, &v2, &v3, color, pos_attr, color_attr);
+
+    draw_triangle(imm, &v6, &v7, &v8, color, pos_attr, color_attr);
+    draw_triangle(imm, &v8, &v5, &v6, color, pos_attr, color_attr);
+
+    draw_triangle(imm, &v1, &v5, &v8, color, pos_attr, color_attr);
+    draw_triangle(imm, &v8, &v4, &v1, color, pos_attr, color_attr);
+
+    draw_triangle(imm, &v3, &v2, &v1, color, pos_attr, color_attr);
+    draw_triangle(imm, &v1, &v4, &v3, color, pos_attr, color_attr);
+
+    draw_triangle(imm, &v4, &v8, &v7, color, pos_attr, color_attr);
+    draw_triangle(imm, &v7, &v3, &v4, color, pos_attr, color_attr);
+}
+
 pub struct BVHDrawData<'a> {
     imm: &'a mut GPUImmediate,
     shader: &'a Shader,
@@ -1053,6 +1111,99 @@ where
             draw_level,
             0,
         );
+
+        imm.end();
+
+        return Ok(());
+    }
+}
+
+pub trait AABB {
+    type ElementIndex;
+    fn give_aabb(&self, elem_index: Self::ElementIndex) -> Vec<Scalar>;
+}
+
+pub struct BVHOverlapDrawData<'a, T> {
+    imm: &'a mut GPUImmediate,
+    shader: &'a Shader,
+    give_aabb: &'a dyn AABB<ElementIndex = T>,
+}
+
+impl<'a, T> BVHOverlapDrawData<'a, T> {
+    pub fn new(
+        imm: &'a mut GPUImmediate,
+        shader: &'a Shader,
+        give_aabb: &'a dyn AABB<ElementIndex = T>,
+    ) -> Self {
+        return Self {
+            imm,
+            shader,
+            give_aabb,
+        };
+    }
+}
+
+impl<T> Drawable<BVHOverlapDrawData<'_, T>, ()> for Vec<BVHTreeOverlap<T>>
+where
+    T: Copy,
+{
+    fn draw(&self, draw_data: &mut BVHOverlapDrawData<T>) -> Result<(), ()> {
+        let imm = &mut draw_data.imm;
+        let shader = &draw_data.shader;
+        let give_aabb = &draw_data.give_aabb;
+        shader.use_shader();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        // Need self.len() (number of overlap pairs) * 6 (number of
+        // faces in a box) * 2 (triangles per face) * 3 (verts per
+        // triangle) * 2 (both boxes)
+        imm.begin(GPUPrimType::Tris, self.len() * 6 * 2 * 3 * 2, shader);
+
+        for overlap in self {
+            let color = glm::vec4(random(), random(), random(), 0.3);
+            let bv = give_aabb.give_aabb(overlap.index_1);
+            assert_eq!(bv.len(), 6);
+            draw_box_fill(
+                imm,
+                bv[0] as f32,
+                bv[1] as f32,
+                bv[2] as f32,
+                bv[3] as f32,
+                bv[4] as f32,
+                bv[5] as f32,
+                &color,
+                pos_attr,
+                color_attr,
+            );
+
+            let bv = give_aabb.give_aabb(overlap.index_2);
+            assert_eq!(bv.len(), 6);
+            draw_box_fill(
+                imm,
+                bv[0] as f32,
+                bv[1] as f32,
+                bv[2] as f32,
+                bv[3] as f32,
+                bv[4] as f32,
+                bv[5] as f32,
+                &color,
+                pos_attr,
+                color_attr,
+            );
+        }
 
         imm.end();
 
