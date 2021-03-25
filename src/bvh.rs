@@ -1171,6 +1171,11 @@ where
             GPUVertFetchMode::Float,
         );
 
+        unsafe {
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+        }
+
         // Need self.len() (number of overlap pairs) * 6 (number of
         // faces in a box) * 2 (triangles per face) * 3 (verts per
         // triangle) * 2 (both boxes)
@@ -1210,6 +1215,10 @@ where
         }
 
         imm.end();
+
+        unsafe {
+            gl::Disable(gl::BLEND);
+        }
 
         return Ok(());
     }
