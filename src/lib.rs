@@ -11,4 +11,5 @@ pub mod mesh;
 pub mod meshreader;
 pub mod shader;
 pub mod simulation;
+pub mod text;
 pub mod util;

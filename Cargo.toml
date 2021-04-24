@@ -18,6 +18,8 @@ generational-arena = "0.2.8"
 criterion = "0.3.4"
 cpp = "0.5"
 lazy_static = "1.4.0"
+ttf-parser = "0.12.0"
+lyon = "0.17.5"
 
 [build-dependencies]
 cpp_build = "0.5"
