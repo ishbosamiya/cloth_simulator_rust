@@ -4,6 +4,7 @@ use lyon::tessellation::*;
 use nalgebra_glm as glm;
 use ttf_parser as ttf;
 
+use std::collections::HashMap;
 use std::path::Path as StdPath;
 
 struct Builder(lyon::path::path::Builder);
@@ -31,8 +32,49 @@ impl ttf::OutlineBuilder for Builder {
     }
 }
 
+struct CharacterSizing {
+    hor_advance: u16,
+    ver_advance: u16,
+    hor_side_bearing: i16,
+    ver_side_bearing: i16,
+    y_origin: i16,
+    bbox: ttf::Rect,
+}
+
+impl CharacterSizing {
+    fn new(
+        hor_advance: u16,
+        ver_advance: u16,
+        hor_side_bearing: i16,
+        ver_side_bearing: i16,
+        y_origin: i16,
+        bbox: ttf::Rect,
+    ) -> Self {
+        return Self {
+            hor_advance,
+            ver_advance,
+            hor_side_bearing,
+            ver_side_bearing,
+            y_origin,
+            bbox,
+        };
+    }
+}
+
+pub struct Character {
+    mesh: VertexBuffers<glm::Vec3, u32>,
+    sizing: CharacterSizing,
+}
+
+impl Character {
+    fn new(mesh: VertexBuffers<glm::Vec3, u32>, sizing: CharacterSizing) -> Self {
+        return Self { mesh, sizing };
+    }
+}
+
 pub struct Font<'a> {
     face: ttf::Face<'a>,
+    char_map: HashMap<char, Character>,
 }
 
 impl<'a> Font<'a> {
@@ -40,7 +82,10 @@ impl<'a> Font<'a> {
         let face = ttf::Face::from_slice(&font_file, 0)
             .expect("error: Given font file couldn't be parsed");
 
-        return Self { face };
+        return Self {
+            face,
+            char_map: HashMap::new(),
+        };
     }
 
     pub fn load_font_file<P>(path: P) -> Vec<u8>
@@ -50,16 +95,19 @@ impl<'a> Font<'a> {
         return std::fs::read(&path).expect("error: Path to font didn't exist");
     }
 
-    pub fn get_char_mesh(&self, c: char) -> Option<VertexBuffers<glm::Vec3, u32>> {
+    pub fn get_character(&self, c: char) -> Option<Character> {
+        // TODO(ish): add the character into the hash map and also
+        // check if character was already cached
         let face = &self.face;
-        let mut builder = Builder(LyonPath::builder());
 
         let glyph_id = match face.glyph_index(c) {
             Some(id) => id,
             None => return None,
         };
 
-        let _bbox = match face.outline_glyph(glyph_id, &mut builder) {
+        let mut builder = Builder(LyonPath::builder());
+
+        let bbox = match face.outline_glyph(glyph_id, &mut builder) {
             Some(bbox) => bbox,
             None => return None,
         };
@@ -81,6 +129,17 @@ impl<'a> Font<'a> {
             )
             .unwrap();
 
-        return Some(geometry);
+        let character = Character::new(
+            geometry,
+            CharacterSizing::new(
+                face.glyph_hor_advance(glyph_id).unwrap(),
+                face.glyph_ver_advance(glyph_id).unwrap(),
+                face.glyph_hor_side_bearing(glyph_id).unwrap(),
+                face.glyph_ver_side_bearing(glyph_id).unwrap(),
+                face.glyph_y_origin(glyph_id).unwrap(),
+                bbox,
+            ),
+        );
+        return Some(character);
     }
 }
