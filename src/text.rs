@@ -95,29 +95,32 @@ impl<'a> Font<'a> {
         return std::fs::read(&path).expect("error: Path to font didn't exist");
     }
 
-    pub fn get_character(&self, c: char) -> Option<Character> {
-        // TODO(ish): add the character into the hash map and also
-        // check if character was already cached
+    pub fn get_character(&mut self, c: char) -> Option<&Character> {
+        // if character was cached, return it
+        if self.char_map.contains_key(&c) {
+            return self.char_map.get(&c);
+        }
         let face = &self.face;
 
+        // get the glyph index for the given character
         let glyph_id = match face.glyph_index(c) {
             Some(id) => id,
             None => return None,
         };
 
+        // build the outline of the glyph
+        // TODO(ish): add support for svg glyphs and figure out what
+        // to do for rasterized glyphs
         let mut builder = Builder(LyonPath::builder());
-
         let bbox = match face.outline_glyph(glyph_id, &mut builder) {
             Some(bbox) => bbox,
             None => return None,
         };
 
+        // tessellate the outline
         let path = builder.0.build();
-
         let mut tessellator = FillTessellator::new();
-
         let mut geometry: VertexBuffers<glm::Vec3, u32> = VertexBuffers::new();
-
         tessellator
             .tessellate_path(
                 &path,
@@ -129,6 +132,7 @@ impl<'a> Font<'a> {
             )
             .unwrap();
 
+        // setup character information for later usage
         let character = Character::new(
             geometry,
             CharacterSizing::new(
@@ -140,6 +144,9 @@ impl<'a> Font<'a> {
                 bbox,
             ),
         );
-        return Some(character);
+
+        // add character to cache and return it
+        self.char_map.insert(c, character);
+        return self.char_map.get(&c);
     }
 }
