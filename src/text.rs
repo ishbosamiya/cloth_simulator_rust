@@ -34,54 +34,54 @@ impl ttf::OutlineBuilder for Builder {
 
 struct CharacterSizing {
     hor_advance: TextSizeFUnits,
-    ver_advance: TextSizeFUnits,
-    hor_side_bearing: TextSizeFUnits,
-    ver_side_bearing: TextSizeFUnits,
-    y_origin: TextSizeFUnits,
-    bbox: TextRectFUnits,
+    _ver_advance: TextSizeFUnits,
+    _hor_side_bearing: TextSizeFUnits,
+    _ver_side_bearing: TextSizeFUnits,
+    _y_origin: TextSizeFUnits,
+    _bbox: TextRectFUnits,
 }
 
 impl CharacterSizing {
     fn new(
         hor_advance: TextSizeFUnits,
-        ver_advance: TextSizeFUnits,
-        hor_side_bearing: TextSizeFUnits,
-        ver_side_bearing: TextSizeFUnits,
-        y_origin: TextSizeFUnits,
-        bbox: TextRectFUnits,
+        _ver_advance: TextSizeFUnits,
+        _hor_side_bearing: TextSizeFUnits,
+        _ver_side_bearing: TextSizeFUnits,
+        _y_origin: TextSizeFUnits,
+        _bbox: TextRectFUnits,
     ) -> Self {
         return Self {
             hor_advance,
-            ver_advance,
-            hor_side_bearing,
-            ver_side_bearing,
-            y_origin,
-            bbox,
+            _ver_advance,
+            _hor_side_bearing,
+            _ver_side_bearing,
+            _y_origin,
+            _bbox,
         };
     }
 
-    fn _get_hor_advance(&self) -> TextSizeFUnits {
+    fn get_hor_advance(&self) -> TextSizeFUnits {
         return self.hor_advance;
     }
 
     fn _get_ver_advance(&self) -> TextSizeFUnits {
-        return self.ver_advance;
+        return self._ver_advance;
     }
 
     fn _get_hor_side_bearing(&self) -> TextSizeFUnits {
-        return self.hor_side_bearing;
+        return self._hor_side_bearing;
     }
 
     fn _get_ver_side_bearing(&self) -> TextSizeFUnits {
-        return self.ver_side_bearing;
+        return self._ver_side_bearing;
     }
 
     fn _get_y_origin(&self) -> TextSizeFUnits {
-        return self.y_origin;
+        return self._y_origin;
     }
 
     fn _get_bbox(&self) -> TextRectFUnits {
-        return self.bbox;
+        return self._bbox;
     }
 }
 
@@ -181,6 +181,29 @@ impl<'a> Font<'a> {
     }
 }
 
+pub struct Text {}
+
+impl Text {
+    pub fn render(string: &str, font: &mut Font, _size: TextSizePT, position: &glm::Vec2) {
+        let mut character_pos: HashMap<char, Vec<TextSizeFUnits>> = HashMap::new();
+        let mut current_pos = TextSizeFUnits(position[0]);
+        for c in string.chars() {
+            let font_char = font.get_character(c).unwrap();
+            let poses = character_pos.entry(c).or_insert(Vec::new());
+            poses.push(current_pos);
+            current_pos.0 += font_char.sizing.get_hor_advance().0;
+        }
+
+        for (c, poses) in character_pos {
+            print!("{}: ", c);
+            for p in poses {
+                print!("{} ", p.0);
+            }
+            println!("");
+        }
+    }
+}
+
 pub trait TextSize {}
 
 /// Text size in `pt`, size in points where 72pt = 1 inch
@@ -213,3 +236,38 @@ pub struct TextRect<T: TextSize> {
 }
 
 pub type TextRectFUnits = TextRect<TextSizeFUnits>;
+
+/// Convert funits to px
+/// `multiplier` got from `funits_to_px_multiplier`
+/// `multipler` made separate for optimization reasons, `multipler`
+/// can be precomputed
+#[inline(always)]
+fn funits_to_px(from: TextSizeFUnits, multiplier: f32) -> TextSizePX {
+    let from = from.0;
+
+    return TextSizePX(from * multiplier);
+}
+
+/// Get multiplier needed to convert funits to px
+fn funits_to_px_multiplier(
+    point_size: TextSizePT,
+    dpi: TextSizePT,
+    units_per_em: TextSizeFUnits,
+) -> f32 {
+    let point_size = point_size.0;
+    let dpi = dpi.0;
+    let units_per_em = units_per_em.0;
+    return point_size * dpi / (72.0 * units_per_em);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_temp() {
+        let font_file = Font::load_font_file("/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf");
+        let mut font = Font::new(&font_file);
+        Text::render("asdf", &mut font, TextSizePT(5.0), &glm::vec2(0.0, 0.0));
+    }
+}
