@@ -34,20 +34,20 @@ impl ttf::OutlineBuilder for Builder {
 
 struct CharacterSizing {
     hor_advance: TextSizeFUnits,
-    _ver_advance: TextSizeFUnits,
-    _hor_side_bearing: TextSizeFUnits,
-    _ver_side_bearing: TextSizeFUnits,
-    _y_origin: TextSizeFUnits,
+    _ver_advance: Option<TextSizeFUnits>,
+    _hor_side_bearing: Option<TextSizeFUnits>,
+    _ver_side_bearing: Option<TextSizeFUnits>,
+    _y_origin: Option<TextSizeFUnits>,
     _bbox: TextRectFUnits,
 }
 
 impl CharacterSizing {
     fn new(
         hor_advance: TextSizeFUnits,
-        _ver_advance: TextSizeFUnits,
-        _hor_side_bearing: TextSizeFUnits,
-        _ver_side_bearing: TextSizeFUnits,
-        _y_origin: TextSizeFUnits,
+        _ver_advance: Option<TextSizeFUnits>,
+        _hor_side_bearing: Option<TextSizeFUnits>,
+        _ver_side_bearing: Option<TextSizeFUnits>,
+        _y_origin: Option<TextSizeFUnits>,
         _bbox: TextRectFUnits,
     ) -> Self {
         return Self {
@@ -64,19 +64,19 @@ impl CharacterSizing {
         return self.hor_advance;
     }
 
-    fn _get_ver_advance(&self) -> TextSizeFUnits {
+    fn _get_ver_advance(&self) -> Option<TextSizeFUnits> {
         return self._ver_advance;
     }
 
-    fn _get_hor_side_bearing(&self) -> TextSizeFUnits {
+    fn _get_hor_side_bearing(&self) -> Option<TextSizeFUnits> {
         return self._hor_side_bearing;
     }
 
-    fn _get_ver_side_bearing(&self) -> TextSizeFUnits {
+    fn _get_ver_side_bearing(&self) -> Option<TextSizeFUnits> {
         return self._ver_side_bearing;
     }
 
-    fn _get_y_origin(&self) -> TextSizeFUnits {
+    fn _get_y_origin(&self) -> Option<TextSizeFUnits> {
         return self._y_origin;
     }
 
@@ -167,10 +167,10 @@ impl<'a> Font<'a> {
             geometry,
             CharacterSizing::new(
                 TextSizeFUnits(face.glyph_hor_advance(glyph_id).unwrap().into()),
-                TextSizeFUnits(face.glyph_ver_advance(glyph_id).unwrap().into()),
-                TextSizeFUnits(face.glyph_hor_side_bearing(glyph_id).unwrap().into()),
-                TextSizeFUnits(face.glyph_ver_side_bearing(glyph_id).unwrap().into()),
-                TextSizeFUnits(face.glyph_y_origin(glyph_id).unwrap().into()),
+                option_funits_from_option_u16(face.glyph_ver_advance(glyph_id)),
+                option_funits_from_option_i16(face.glyph_hor_side_bearing(glyph_id)),
+                option_funits_from_option_i16(face.glyph_ver_side_bearing(glyph_id)),
+                option_funits_from_option_i16(face.glyph_y_origin(glyph_id)),
                 bbox,
             ),
         );
@@ -224,6 +224,18 @@ impl TextSize for TextSizePX {}
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct TextSizeFUnits(pub f32);
 impl TextSize for TextSizeFUnits {}
+fn option_funits_from_option_u16(val: Option<u16>) -> Option<TextSizeFUnits> {
+    match val {
+        Some(v) => return Some(TextSizeFUnits(v.into())),
+        None => return None,
+    }
+}
+fn option_funits_from_option_i16(val: Option<i16>) -> Option<TextSizeFUnits> {
+    match val {
+        Some(v) => return Some(TextSizeFUnits(v.into())),
+        None => return None,
+    }
+}
 
 /// Text Rectangle
 #[repr(C)]
