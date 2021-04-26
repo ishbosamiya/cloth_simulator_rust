@@ -184,20 +184,43 @@ impl<'a> Font<'a> {
 pub struct Text {}
 
 impl Text {
-    pub fn render(string: &str, font: &mut Font, _size: TextSizePT, position: &glm::Vec2) {
-        let mut character_pos: HashMap<char, Vec<TextSizeFUnits>> = HashMap::new();
-        let mut current_pos = TextSizeFUnits(position[0]);
+    pub fn render(
+        string: &str,
+        font: &mut Font,
+        size: TextSizePT,
+        position: &glm::Vec2,
+        dpi: TextSizePT,
+    ) {
+        let mut character_pos_map: HashMap<char, Vec<TextSizeFUnits>> = HashMap::new();
+        let mut current_pos = TextSizeFUnits(0.0);
         for c in string.chars() {
             let font_char = font.get_character(c).unwrap();
-            let poses = character_pos.entry(c).or_insert(Vec::new());
+            let poses = character_pos_map.entry(c).or_insert(Vec::new());
             poses.push(current_pos);
             current_pos.0 += font_char.sizing.get_hor_advance().0;
         }
 
-        for (c, poses) in character_pos {
+        let units_per_em = TextSizeFUnits(font.face.units_per_em().unwrap().into());
+        let px_multiplier = funits_to_px_multiplier(size, dpi, units_per_em);
+        let gl_coord_multiplier = 1.0; // TODO(ish): implement this
+
+        let mut final_pos_map: HashMap<char, Vec<glm::Vec3>> = HashMap::new();
+        for (c, poses) in character_pos_map {
+            let final_poses = final_pos_map.entry(c).or_insert(Vec::new());
+            for p in poses {
+                let final_pos = glm::vec3(
+                    funits_to_px(p, px_multiplier).0 * gl_coord_multiplier + position[0],
+                    position[1],
+                    0.0,
+                );
+                final_poses.push(final_pos);
+            }
+        }
+
+        for (c, poses) in final_pos_map {
             print!("{}: ", c);
             for p in poses {
-                print!("{} ", p.0);
+                print!("{} ", p[0]);
             }
             println!("");
         }
@@ -280,6 +303,12 @@ mod tests {
     fn text_temp() {
         let font_file = Font::load_font_file("/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf");
         let mut font = Font::new(&font_file);
-        Text::render("asdf", &mut font, TextSizePT(5.0), &glm::vec2(0.0, 0.0));
+        Text::render(
+            "asdf",
+            &mut font,
+            TextSizePT(5.0),
+            &glm::vec2(0.0, 0.0),
+            TextSizePT(72.0),
+        );
     }
 }
