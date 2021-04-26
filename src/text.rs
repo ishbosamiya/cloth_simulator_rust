@@ -33,22 +33,22 @@ impl ttf::OutlineBuilder for Builder {
 }
 
 struct CharacterSizing {
-    hor_advance: u16,
-    ver_advance: u16,
-    hor_side_bearing: i16,
-    ver_side_bearing: i16,
-    y_origin: i16,
-    bbox: ttf::Rect,
+    hor_advance: TextSizeFUnits,
+    ver_advance: TextSizeFUnits,
+    hor_side_bearing: TextSizeFUnits,
+    ver_side_bearing: TextSizeFUnits,
+    y_origin: TextSizeFUnits,
+    bbox: TextRectFUnits,
 }
 
 impl CharacterSizing {
     fn new(
-        hor_advance: u16,
-        ver_advance: u16,
-        hor_side_bearing: i16,
-        ver_side_bearing: i16,
-        y_origin: i16,
-        bbox: ttf::Rect,
+        hor_advance: TextSizeFUnits,
+        ver_advance: TextSizeFUnits,
+        hor_side_bearing: TextSizeFUnits,
+        ver_side_bearing: TextSizeFUnits,
+        y_origin: TextSizeFUnits,
+        bbox: TextRectFUnits,
     ) -> Self {
         return Self {
             hor_advance,
@@ -59,9 +59,33 @@ impl CharacterSizing {
             bbox,
         };
     }
+
+    fn _get_hor_advance(&self) -> TextSizeFUnits {
+        return self.hor_advance;
+    }
+
+    fn _get_ver_advance(&self) -> TextSizeFUnits {
+        return self.ver_advance;
+    }
+
+    fn _get_hor_side_bearing(&self) -> TextSizeFUnits {
+        return self.hor_side_bearing;
+    }
+
+    fn _get_ver_side_bearing(&self) -> TextSizeFUnits {
+        return self.ver_side_bearing;
+    }
+
+    fn _get_y_origin(&self) -> TextSizeFUnits {
+        return self.y_origin;
+    }
+
+    fn _get_bbox(&self) -> TextRectFUnits {
+        return self.bbox;
+    }
 }
 
-pub struct Character {
+struct Character {
     mesh: VertexBuffers<glm::Vec3, u32>,
     sizing: CharacterSizing,
 }
@@ -95,7 +119,7 @@ impl<'a> Font<'a> {
         return std::fs::read(&path).expect("error: Path to font didn't exist");
     }
 
-    pub fn get_character(&mut self, c: char) -> Option<&Character> {
+    fn get_character(&mut self, c: char) -> Option<&Character> {
         // if character was cached, return it
         if self.char_map.contains_key(&c) {
             return self.char_map.get(&c);
@@ -115,6 +139,12 @@ impl<'a> Font<'a> {
         let bbox = match face.outline_glyph(glyph_id, &mut builder) {
             Some(bbox) => bbox,
             None => return None,
+        };
+        let bbox = TextRectFUnits {
+            x_min: TextSizeFUnits(bbox.x_min.into()),
+            x_max: TextSizeFUnits(bbox.x_max.into()),
+            y_min: TextSizeFUnits(bbox.y_min.into()),
+            y_max: TextSizeFUnits(bbox.y_max.into()),
         };
 
         // tessellate the outline
@@ -136,11 +166,11 @@ impl<'a> Font<'a> {
         let character = Character::new(
             geometry,
             CharacterSizing::new(
-                face.glyph_hor_advance(glyph_id).unwrap(),
-                face.glyph_ver_advance(glyph_id).unwrap(),
-                face.glyph_hor_side_bearing(glyph_id).unwrap(),
-                face.glyph_ver_side_bearing(glyph_id).unwrap(),
-                face.glyph_y_origin(glyph_id).unwrap(),
+                TextSizeFUnits(face.glyph_hor_advance(glyph_id).unwrap().into()),
+                TextSizeFUnits(face.glyph_ver_advance(glyph_id).unwrap().into()),
+                TextSizeFUnits(face.glyph_hor_side_bearing(glyph_id).unwrap().into()),
+                TextSizeFUnits(face.glyph_ver_side_bearing(glyph_id).unwrap().into()),
+                TextSizeFUnits(face.glyph_y_origin(glyph_id).unwrap().into()),
                 bbox,
             ),
         );
@@ -150,3 +180,36 @@ impl<'a> Font<'a> {
         return self.char_map.get(&c);
     }
 }
+
+pub trait TextSize {}
+
+/// Text size in `pt`, size in points where 72pt = 1 inch
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct TextSizePT(pub f32);
+impl TextSize for TextSizePT {}
+
+/// Text size in `px`, size in pixels
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct TextSizePX(pub f32);
+impl TextSize for TextSizePX {}
+
+/// Text size in `FUnits`. `FUnit` is the smallest measurable unit in
+/// the em square, an imaginary square that is used to size and align
+/// glyphs. The dimensions of the em square typically are those of the
+/// full body height of a font plus some extra spacing to prevent
+/// lines of text from colliding when typeset without extra leading.
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct TextSizeFUnits(pub f32);
+impl TextSize for TextSizeFUnits {}
+
+/// Text Rectangle
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct TextRect<T: TextSize> {
+    pub x_min: T,
+    pub y_min: T,
+    pub x_max: T,
+    pub y_max: T,
+}
+
+pub type TextRectFUnits = TextRect<TextSizeFUnits>;
