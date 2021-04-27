@@ -240,18 +240,6 @@ impl Text {
                 let mut model_matrices_buffer: gl::types::GLuint = 0;
                 let mut vbo: gl::types::GLuint = 0;
                 let mut ebo: gl::types::GLuint = 0;
-                unsafe {
-                    gl::GenBuffers(1, &mut model_matrices_buffer);
-                    gl::BindBuffer(gl::ARRAY_BUFFER, model_matrices_buffer);
-                    gl::BufferData(
-                        gl::ARRAY_BUFFER,
-                        (model_matrices.len() * std::mem::size_of::<glm::Mat4>())
-                            .try_into()
-                            .unwrap(),
-                        model_matrices.as_ptr() as *const gl::types::GLvoid,
-                        gl::STATIC_DRAW,
-                    );
-                }
 
                 unsafe {
                     gl::GenVertexArrays(1, &mut vao);
@@ -279,8 +267,7 @@ impl Text {
                         mesh.indices.as_ptr() as *const gl::types::GLvoid,
                         gl::STATIC_DRAW,
                     );
-                }
-                unsafe {
+
                     // position in the shader
                     gl::EnableVertexAttribArray(0);
                     gl::VertexAttribPointer(
@@ -290,6 +277,18 @@ impl Text {
                         gl::FALSE,
                         std::mem::size_of::<glm::Vec3>().try_into().unwrap(),
                         std::ptr::null(),
+                    );
+                }
+                unsafe {
+                    gl::GenBuffers(1, &mut model_matrices_buffer);
+                    gl::BindBuffer(gl::ARRAY_BUFFER, model_matrices_buffer);
+                    gl::BufferData(
+                        gl::ARRAY_BUFFER,
+                        (model_matrices.len() * std::mem::size_of::<glm::Mat4>())
+                            .try_into()
+                            .unwrap(),
+                        model_matrices.as_ptr() as *const gl::types::GLvoid,
+                        gl::STATIC_DRAW,
                     );
 
                     // model matrix in the shader
