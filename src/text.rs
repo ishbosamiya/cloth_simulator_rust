@@ -212,7 +212,7 @@ impl Text {
                 let final_pos = glm::vec3(
                     funits_to_px(p, px_multiplier).0 * gl_coord_multiplier + position[0],
                     position[1],
-                    0.0,
+                    -0.15,
                 );
                 final_poses.push(final_pos);
             }
@@ -224,14 +224,11 @@ impl Text {
             let mut model_matrices = Vec::new();
             for p in poses {
                 let model = glm::identity();
-                // let model = glm::scale(
-                //     &glm::identity(),
-                //     &glm::vec3(px_multiplier, px_multiplier, px_multiplier),
-                // );
                 let model = glm::translate(&model, &p);
-                println!("c: {}", c);
-                println!("p: {}", p);
-                println!("model: {}", model);
+                let model = glm::scale(
+                    &model,
+                    &glm::vec3(px_multiplier, px_multiplier, px_multiplier),
+                );
                 model_matrices.push(model);
             }
 

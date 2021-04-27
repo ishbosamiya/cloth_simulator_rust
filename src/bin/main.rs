@@ -206,7 +206,6 @@ fn main() {
             "projection\0",
             &glm::convert(ortho_camera.get_ortho_matrix()),
         );
-        text_shader.set_mat4("view\0", &glm::convert(ortho_camera.get_view_matrix()));
 
         // default_shader.use_shader();
         directional_light_shader.use_shader();
@@ -276,9 +275,9 @@ fn main() {
         Text::render(
             "helloworld",
             &mut font,
-            TextSizePT(11.0),
+            TextSizePT(12.0),
             &glm::vec2(0.0, 0.0),
-            TextSizePT(72.0),
+            TextSizePT(72.0 * 10.0),
         );
 
         window.borrow_mut().swap_buffers();
