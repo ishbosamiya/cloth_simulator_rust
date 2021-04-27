@@ -24,6 +24,7 @@ fn main() {
     glfw.window_hint(glfw::WindowHint::OpenGlProfile(
         glfw::OpenGlProfileHint::Core,
     ));
+    glfw.window_hint(glfw::WindowHint::Samples(Some(16)));
     #[cfg(target_os = "macos")]
     glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
     let (window, events) = glfw
@@ -46,6 +47,7 @@ fn main() {
     unsafe {
         gl::Disable(gl::CULL_FACE);
         gl::Enable(gl::DEPTH_TEST);
+        gl::Enable(gl::MULTISAMPLE);
     }
 
     let default_shader = Shader::new(
