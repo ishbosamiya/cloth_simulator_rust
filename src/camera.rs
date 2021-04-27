@@ -78,6 +78,15 @@ impl WindowCamera {
         );
     }
 
+    pub fn get_ortho_matrix(&self) -> glm::DMat4 {
+        let window = self
+            .window
+            .upgrade()
+            .expect("Window with which camera was made is lost");
+        let (width, height) = window.borrow().get_size();
+        return glm::ortho(0.0, 0.0, width as f64, height as f64, 0.1, 1000.0);
+    }
+
     pub fn pan(
         &mut self,
         mouse_start_x: f64,
