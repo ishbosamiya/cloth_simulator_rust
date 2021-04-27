@@ -84,7 +84,7 @@ impl WindowCamera {
             .upgrade()
             .expect("Window with which camera was made is lost");
         let (width, height) = window.borrow().get_size();
-        return glm::ortho(0.0, 0.0, width as f64, height as f64, 0.1, 1000.0);
+        return glm::ortho(0.0, width as f64, 0.0, height as f64, 0.1, 1000.0);
     }
 
     pub fn pan(
