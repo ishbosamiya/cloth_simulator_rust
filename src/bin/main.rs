@@ -140,6 +140,19 @@ fn main() {
 
     let mut fps = FPS::new();
 
+    let dpi = glfw.with_primary_monitor(|_, monitor| {
+        let monitor = monitor.expect("error: Unable to get reference to monitor");
+        let (size_x, size_y) = monitor.get_physical_size();
+        let video_mode = monitor.get_video_mode().unwrap();
+        let (res_x, res_y) = (video_mode.width, video_mode.height);
+        let raw_dpi_x = res_x as f32 * 25.4 / size_x as f32;
+        let raw_dpi_y = res_y as f32 * 25.4 / size_y as f32;
+        let (scale_x, scale_y) = monitor.get_content_scale();
+        let dpi_x = raw_dpi_x * scale_x as f32;
+        let _dpi_y = raw_dpi_y * scale_y as f32;
+        return dpi_x;
+    });
+
     while !window.borrow().should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
@@ -275,9 +288,9 @@ fn main() {
         Text::render(
             "helloworld",
             &mut font,
-            TextSizePT(12.0),
-            &glm::vec2(0.0, 0.0),
-            TextSizePT(72.0 * 10.0),
+            TextSizePT(72.0),
+            &glm::vec2(40.0, 50.0),
+            TextSizePT(dpi),
         );
 
         window.borrow_mut().swap_buffers();
