@@ -5,6 +5,7 @@ use nalgebra_glm as glm;
 use ttf_parser as ttf;
 
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::path::Path as StdPath;
 
 struct Builder(lyon::path::path::Builder);
@@ -217,13 +218,151 @@ impl Text {
             }
         }
 
-        for (c, poses) in final_pos_map {
-            print!("{}: ", c);
+        for (c, poses) in &final_pos_map {
+            let mesh = &font.char_map.get(&c).unwrap().mesh;
+
+            let mut model_matrices = Vec::new();
             for p in poses {
-                print!("{} ", p[0]);
+                let model = glm::identity();
+                // let model = glm::scale(
+                //     &glm::identity(),
+                //     &glm::vec3(px_multiplier, px_multiplier, px_multiplier),
+                // );
+                let model = glm::translate(&model, &p);
+                println!("c: {}", c);
+                println!("p: {}", p);
+                println!("model: {}", model);
+                model_matrices.push(model);
             }
-            println!("");
+
+            let mut vao: gl::types::GLuint = 0;
+            {
+                let mut model_matrices_buffer: gl::types::GLuint = 0;
+                let mut vbo: gl::types::GLuint = 0;
+                let mut ebo: gl::types::GLuint = 0;
+                unsafe {
+                    gl::GenBuffers(1, &mut model_matrices_buffer);
+                    gl::BindBuffer(gl::ARRAY_BUFFER, model_matrices_buffer);
+                    gl::BufferData(
+                        gl::ARRAY_BUFFER,
+                        (model_matrices.len() * std::mem::size_of::<glm::Mat4>())
+                            .try_into()
+                            .unwrap(),
+                        model_matrices.as_ptr() as *const gl::types::GLvoid,
+                        gl::STATIC_DRAW,
+                    );
+                }
+
+                unsafe {
+                    gl::GenVertexArrays(1, &mut vao);
+                    gl::GenBuffers(1, &mut vbo);
+                    gl::GenBuffers(1, &mut ebo);
+
+                    gl::BindVertexArray(vao);
+
+                    gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+                    gl::BufferData(
+                        gl::ARRAY_BUFFER,
+                        (mesh.vertices.len() * std::mem::size_of::<glm::Vec3>())
+                            .try_into()
+                            .unwrap(),
+                        mesh.vertices.as_ptr() as *const gl::types::GLvoid,
+                        gl::STATIC_DRAW,
+                    );
+
+                    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+                    gl::BufferData(
+                        gl::ELEMENT_ARRAY_BUFFER,
+                        (mesh.indices.len() * std::mem::size_of::<u32>())
+                            .try_into()
+                            .unwrap(),
+                        mesh.indices.as_ptr() as *const gl::types::GLvoid,
+                        gl::STATIC_DRAW,
+                    );
+                }
+                unsafe {
+                    // position in the shader
+                    gl::EnableVertexAttribArray(0);
+                    gl::VertexAttribPointer(
+                        0,
+                        3,
+                        gl::FLOAT,
+                        gl::FALSE,
+                        std::mem::size_of::<glm::Vec3>().try_into().unwrap(),
+                        std::ptr::null(),
+                    );
+
+                    // model matrix in the shader
+                    // set is as 4 vec4's
+                    gl::EnableVertexAttribArray(1);
+                    gl::VertexAttribPointer(
+                        1,
+                        4,
+                        gl::FLOAT,
+                        gl::FALSE,
+                        std::mem::size_of::<glm::Mat4>().try_into().unwrap(),
+                        std::ptr::null::<gl::types::GLvoid>()
+                            .offset((0 * std::mem::size_of::<glm::Vec4>()).try_into().unwrap()),
+                    );
+                    gl::EnableVertexAttribArray(2);
+                    gl::VertexAttribPointer(
+                        2,
+                        4,
+                        gl::FLOAT,
+                        gl::FALSE,
+                        std::mem::size_of::<glm::Mat4>().try_into().unwrap(),
+                        std::ptr::null::<gl::types::GLvoid>()
+                            .offset((1 * std::mem::size_of::<glm::Vec4>()).try_into().unwrap()),
+                    );
+                    gl::EnableVertexAttribArray(3);
+                    gl::VertexAttribPointer(
+                        3,
+                        4,
+                        gl::FLOAT,
+                        gl::FALSE,
+                        std::mem::size_of::<glm::Mat4>().try_into().unwrap(),
+                        std::ptr::null::<gl::types::GLvoid>()
+                            .offset((2 * std::mem::size_of::<glm::Vec4>()).try_into().unwrap()),
+                    );
+                    gl::EnableVertexAttribArray(4);
+                    gl::VertexAttribPointer(
+                        4,
+                        4,
+                        gl::FLOAT,
+                        gl::FALSE,
+                        std::mem::size_of::<glm::Mat4>().try_into().unwrap(),
+                        std::ptr::null::<gl::types::GLvoid>()
+                            .offset((3 * std::mem::size_of::<glm::Vec4>()).try_into().unwrap()),
+                    );
+
+                    gl::VertexAttribDivisor(1, 1);
+                    gl::VertexAttribDivisor(2, 1);
+                    gl::VertexAttribDivisor(3, 1);
+                    gl::VertexAttribDivisor(4, 1);
+                }
+            }
+            {
+                unsafe {
+                    gl::BindVertexArray(vao);
+                    gl::DrawElementsInstanced(
+                        gl::TRIANGLES,
+                        mesh.indices.len().try_into().unwrap(),
+                        gl::UNSIGNED_INT,
+                        std::ptr::null(),
+                        model_matrices.len().try_into().unwrap(),
+                    );
+                    gl::BindVertexArray(0);
+                }
+            }
         }
+
+        // for (c, poses) in final_pos_map {
+        //     print!("{}: ", c);
+        //     for p in poses {
+        //         print!("{} ", p[0]);
+        //     }
+        //     println!("");
+        // }
     }
 }
 

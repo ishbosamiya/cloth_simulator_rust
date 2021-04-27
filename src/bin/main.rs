@@ -15,6 +15,7 @@ use cloth_simulator_rust::gpu_immediate::*;
 use cloth_simulator_rust::mesh::MeshDrawData;
 use cloth_simulator_rust::shader::Shader;
 use cloth_simulator_rust::simulation::{cloth, ConstraintDrawData, Simulation};
+use cloth_simulator_rust::text::{Font, Text, TextSizePT};
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -69,6 +70,12 @@ fn main() {
     )
     .unwrap();
 
+    let text_shader = Shader::new(
+        std::path::Path::new("shaders/text.vert"),
+        std::path::Path::new("shaders/text.frag"),
+    )
+    .unwrap();
+
     println!(
         "default: uniforms: {:?} attributes: {:?}",
         default_shader.get_uniforms(),
@@ -89,6 +96,11 @@ fn main() {
         smooth_3d_color_shader.get_uniforms(),
         smooth_3d_color_shader.get_attributes(),
     );
+    println!(
+        "text: uniforms: {:?} attributes: {:?}",
+        text_shader.get_uniforms(),
+        text_shader.get_attributes(),
+    );
 
     let mut camera = WindowCamera::new(
         Rc::downgrade(&window),
@@ -98,6 +110,17 @@ fn main() {
         0.0,
         45.0,
     );
+    let ortho_camera = WindowCamera::new(
+        Rc::downgrade(&window),
+        glm::vec3(0.0, 0.0, 3.0),
+        glm::vec3(0.0, 1.0, 0.0),
+        -90.0,
+        0.0,
+        45.0,
+    );
+
+    let font_file = Font::load_font_file("/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf");
+    let mut font = Font::new(&font_file);
 
     let mut cloth = cloth::Mesh::new();
     cloth
@@ -178,6 +201,13 @@ fn main() {
         face_orientation_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
         face_orientation_shader.set_mat4("model\0", &glm::identity());
 
+        text_shader.use_shader();
+        text_shader.set_mat4(
+            "projection\0",
+            &glm::convert(ortho_camera.get_ortho_matrix()),
+        );
+        text_shader.set_mat4("view\0", &glm::convert(ortho_camera.get_view_matrix()));
+
         // default_shader.use_shader();
         directional_light_shader.use_shader();
         // face_orientation_shader.use_shader();
@@ -241,6 +271,15 @@ fn main() {
                 overlap.draw(&mut draw_data).unwrap();
             }
         }
+
+        text_shader.use_shader();
+        Text::render(
+            "helloworld",
+            &mut font,
+            TextSizePT(11.0),
+            &glm::vec2(0.0, 0.0),
+            TextSizePT(72.0),
+        );
 
         window.borrow_mut().swap_buffers();
 
