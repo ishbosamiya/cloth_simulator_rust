@@ -217,6 +217,10 @@ impl Text {
         position: &glm::Vec2,
         dpi: TextSizePT,
     ) {
+        let depth_test_enabled = unsafe { gl::IsEnabled(gl::DEPTH_TEST) != 0 };
+        unsafe {
+            gl::Disable(gl::DEPTH_TEST);
+        }
         let mut character_pos_map: HashMap<char, Vec<TextSizeFUnits>> = HashMap::new();
         let mut current_pos = TextSizeFUnits(0.0);
         for c in string.chars() {
@@ -236,7 +240,7 @@ impl Text {
                 let final_pos = glm::vec3(
                     funits_to_px(p, px_multiplier).0 + position[0],
                     position[1],
-                    -0.15,
+                    -10.5,
                 );
                 final_poses.push(final_pos);
             }
@@ -378,6 +382,12 @@ impl Text {
                     );
                     gl::BindVertexArray(0);
                 }
+            }
+        }
+
+        if depth_test_enabled {
+            unsafe {
+                gl::Enable(gl::DEPTH_TEST);
             }
         }
     }
