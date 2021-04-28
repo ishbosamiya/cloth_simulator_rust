@@ -39,7 +39,7 @@ struct CharacterSizing {
     _hor_side_bearing: Option<TextSizeFUnits>,
     _ver_side_bearing: Option<TextSizeFUnits>,
     _y_origin: Option<TextSizeFUnits>,
-    _bbox: TextRectFUnits,
+    _bbox: Option<TextRectFUnits>,
 }
 
 impl CharacterSizing {
@@ -49,7 +49,7 @@ impl CharacterSizing {
         _hor_side_bearing: Option<TextSizeFUnits>,
         _ver_side_bearing: Option<TextSizeFUnits>,
         _y_origin: Option<TextSizeFUnits>,
-        _bbox: TextRectFUnits,
+        _bbox: Option<TextRectFUnits>,
     ) -> Self {
         return Self {
             hor_advance,
@@ -59,6 +59,27 @@ impl CharacterSizing {
             _y_origin,
             _bbox,
         };
+    }
+
+    fn from_face(face: &ttf::Face, glyph_id: ttf::GlyphId) -> Self {
+        let bbox = face.glyph_bounding_box(glyph_id);
+        let bbox = match bbox {
+            Some(bbox) => Some(TextRectFUnits {
+                x_min: TextSizeFUnits(bbox.x_min.into()),
+                x_max: TextSizeFUnits(bbox.x_max.into()),
+                y_min: TextSizeFUnits(bbox.y_min.into()),
+                y_max: TextSizeFUnits(bbox.y_max.into()),
+            }),
+            None => None,
+        };
+        return Self::new(
+            TextSizeFUnits(face.glyph_hor_advance(glyph_id).unwrap().into()),
+            option_funits_from_option_u16(face.glyph_ver_advance(glyph_id)),
+            option_funits_from_option_i16(face.glyph_hor_side_bearing(glyph_id)),
+            option_funits_from_option_i16(face.glyph_ver_side_bearing(glyph_id)),
+            option_funits_from_option_i16(face.glyph_y_origin(glyph_id)),
+            bbox,
+        );
     }
 
     fn get_hor_advance(&self) -> TextSizeFUnits {
@@ -81,18 +102,18 @@ impl CharacterSizing {
         return self._y_origin;
     }
 
-    fn _get_bbox(&self) -> TextRectFUnits {
+    fn _get_bbox(&self) -> Option<TextRectFUnits> {
         return self._bbox;
     }
 }
 
 struct Character {
-    mesh: VertexBuffers<glm::Vec3, u32>,
+    mesh: Option<VertexBuffers<glm::Vec3, u32>>,
     sizing: CharacterSizing,
 }
 
 impl Character {
-    fn new(mesh: VertexBuffers<glm::Vec3, u32>, sizing: CharacterSizing) -> Self {
+    fn new(mesh: Option<VertexBuffers<glm::Vec3, u32>>, sizing: CharacterSizing) -> Self {
         return Self { mesh, sizing };
     }
 }
@@ -120,32 +141,18 @@ impl<'a> Font<'a> {
         return std::fs::read(&path).expect("error: Path to font didn't exist");
     }
 
-    fn get_character(&mut self, c: char) -> Option<&Character> {
-        // if character was cached, return it
-        if self.char_map.contains_key(&c) {
-            return self.char_map.get(&c);
-        }
+    fn build_character_mesh(
+        &self,
+        glyph_id: ttf::GlyphId,
+    ) -> Option<VertexBuffers<glm::Vec3, u32>> {
         let face = &self.face;
-
-        // get the glyph index for the given character
-        let glyph_id = match face.glyph_index(c) {
-            Some(id) => id,
-            None => return None,
-        };
-
         // build the outline of the glyph
         // TODO(ish): add support for svg glyphs and figure out what
         // to do for rasterized glyphs
         let mut builder = Builder(LyonPath::builder());
-        let bbox = match face.outline_glyph(glyph_id, &mut builder) {
-            Some(bbox) => bbox,
+        match face.outline_glyph(glyph_id, &mut builder) {
+            Some(_bbox) => (),
             None => return None,
-        };
-        let bbox = TextRectFUnits {
-            x_min: TextSizeFUnits(bbox.x_min.into()),
-            x_max: TextSizeFUnits(bbox.x_max.into()),
-            y_min: TextSizeFUnits(bbox.y_min.into()),
-            y_max: TextSizeFUnits(bbox.y_max.into()),
         };
 
         // tessellate the outline
@@ -163,18 +170,36 @@ impl<'a> Font<'a> {
             )
             .unwrap();
 
-        // setup character information for later usage
-        let character = Character::new(
-            geometry,
-            CharacterSizing::new(
-                TextSizeFUnits(face.glyph_hor_advance(glyph_id).unwrap().into()),
-                option_funits_from_option_u16(face.glyph_ver_advance(glyph_id)),
-                option_funits_from_option_i16(face.glyph_hor_side_bearing(glyph_id)),
-                option_funits_from_option_i16(face.glyph_ver_side_bearing(glyph_id)),
-                option_funits_from_option_i16(face.glyph_y_origin(glyph_id)),
-                bbox,
-            ),
-        );
+        return Some(geometry);
+    }
+
+    fn get_character(&mut self, c: char) -> Option<&Character> {
+        // if character was cached, return it
+        if self.char_map.contains_key(&c) {
+            return self.char_map.get(&c);
+        }
+
+        let face = &self.face;
+
+        // get the glyph index for the given character
+        let glyph_id = match face.glyph_index(c) {
+            Some(id) => id,
+            None => return None,
+        };
+
+        let character;
+        // Handle whitespace separately
+        if c.is_whitespace() {
+            assert_eq!(c, ' '); // TODO(ish): Add support for other whitespaces
+            character = Character::new(None, CharacterSizing::from_face(face, glyph_id));
+        } else {
+            // Build geometry for the glyph
+            let geometry = self
+                .build_character_mesh(glyph_id)
+                .expect("error: for given character, mesh couldn't be built");
+            // setup character information for later usage
+            character = Character::new(Some(geometry), CharacterSizing::from_face(face, glyph_id));
+        }
 
         // add character to cache and return it
         self.char_map.insert(c, character);
@@ -219,6 +244,11 @@ impl Text {
 
         for (c, poses) in &final_pos_map {
             let mesh = &font.char_map.get(&c).unwrap().mesh;
+
+            let mesh = match mesh {
+                Some(mesh) => mesh,
+                None => continue,
+            };
 
             let mut model_matrices = Vec::new();
             for p in poses {
@@ -419,22 +449,4 @@ fn funits_to_px_multiplier(
     let dpi = dpi.0;
     let units_per_em = units_per_em.0;
     return point_size * dpi / (72.0 * units_per_em);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn text_temp() {
-        let font_file = Font::load_font_file("/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf");
-        let mut font = Font::new(&font_file);
-        Text::render(
-            "asdf",
-            &mut font,
-            TextSizePT(5.0),
-            &glm::vec2(0.0, 0.0),
-            TextSizePT(72.0),
-        );
-    }
 }

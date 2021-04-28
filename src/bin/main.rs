@@ -288,7 +288,7 @@ fn main() {
 
         text_shader.use_shader();
         Text::render(
-            "helloworld",
+            "hello world",
             &mut font,
             TextSizePT(72.0),
             &glm::vec2(40.0, 50.0),
