@@ -203,14 +203,13 @@ impl Text {
 
         let units_per_em = TextSizeFUnits(font.face.units_per_em().unwrap().into());
         let px_multiplier = funits_to_px_multiplier(size, dpi, units_per_em);
-        let gl_coord_multiplier = 1.0; // TODO(ish): implement this
 
         let mut final_pos_map: HashMap<char, Vec<glm::Vec3>> = HashMap::new();
         for (c, poses) in character_pos_map {
             let final_poses = final_pos_map.entry(c).or_insert(Vec::new());
             for p in poses {
                 let final_pos = glm::vec3(
-                    funits_to_px(p, px_multiplier).0 * gl_coord_multiplier + position[0],
+                    funits_to_px(p, px_multiplier).0 + position[0],
                     position[1],
                     -0.15,
                 );
@@ -351,14 +350,6 @@ impl Text {
                 }
             }
         }
-
-        // for (c, poses) in final_pos_map {
-        //     print!("{}: ", c);
-        //     for p in poses {
-        //         print!("{} ", p[0]);
-        //     }
-        //     println!("");
-        // }
     }
 }
 
