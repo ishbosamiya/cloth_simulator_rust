@@ -140,7 +140,7 @@ fn main() {
 
     let mut last_cursor = window.borrow().get_cursor_pos();
 
-    let mut fps = FPS::new();
+    let mut fps = FPS::new(&mut font);
 
     let dpi = glfw.with_primary_monitor(|_, monitor| {
         let monitor = monitor.expect("error: Unable to get reference to monitor");
@@ -287,17 +287,9 @@ fn main() {
         }
 
         text_shader.use_shader();
-        Text::render(
-            "hello world",
-            &mut font,
-            TextSizePT(72.0),
-            &glm::vec2(40.0, 50.0),
-            TextSizePT(dpi),
-        );
+        fps.update_and_render(dpi);
 
         window.borrow_mut().swap_buffers();
-
-        fps.update_and_print(20);
     }
 }
 
@@ -376,21 +368,45 @@ fn handle_window_event(
     *last_cursor = cursor;
 }
 
-struct FPS {
+struct FPS<'a> {
     previous_time: std::time::Instant,
     frames: usize,
+    font: &'a mut Font<'a>,
 }
 
-impl FPS {
-    fn new() -> FPS {
-        return FPS {
+impl<'a> FPS<'a> {
+    fn new(font: &'a mut Font<'a>) -> Self {
+        return Self {
             previous_time: std::time::Instant::now(),
             frames: 0,
+            font,
         };
     }
 
+    /// Update and render fps
+    fn update_and_render(&mut self, dpi: f32) {
+        self.frames += 1;
+
+        let current = std::time::Instant::now();
+        let time_diff = (current - self.previous_time).as_secs_f64();
+        let fps = self.frames as f64 / time_diff;
+
+        let fps_string = format!("fps: {:.2}", fps);
+        Text::render(
+            &fps_string,
+            &mut self.font,
+            TextSizePT(10.0),
+            &glm::vec2(20.0, 25.0),
+            TextSizePT(dpi),
+        );
+        if time_diff > 0.2 {
+            self.previous_time = current;
+            self.frames = 0;
+        }
+    }
+
     /// Update and print every nth frame
-    fn update_and_print(&mut self, n: usize) {
+    fn _update_and_print(&mut self, n: usize) {
         self.frames += 1;
 
         if self.frames % n == 0 {
