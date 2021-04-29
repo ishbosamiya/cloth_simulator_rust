@@ -238,7 +238,8 @@ impl Text {
         }
 
         let units_per_em = TextSizeFUnits(font.face.units_per_em().unwrap().into());
-        let px_multiplier = funits_to_px_multiplier(size, dpi, units_per_em);
+        let face_height = TextSizeFUnits(font.face.height().into());
+        let px_multiplier = funits_to_px_multiplier(size, dpi, units_per_em, face_height);
 
         let mut final_pos_map: HashMap<char, Vec<glm::Vec3>> = HashMap::new();
         for (c, poses) in character_pos_map {
@@ -422,7 +423,8 @@ impl Text {
         character_poses.push(current_pos);
 
         let units_per_em = TextSizeFUnits(font.face.units_per_em().unwrap().into());
-        let px_multiplier = funits_to_px_multiplier(size, dpi, units_per_em);
+        let face_height = TextSizeFUnits(font.face.height().into());
+        let px_multiplier = funits_to_px_multiplier(size, dpi, units_per_em, face_height);
 
         let text_height = font.face.height();
         let text_height = TextSizeFUnits(text_height.into());
@@ -552,9 +554,15 @@ fn funits_to_px_multiplier(
     point_size: TextSizePT,
     dpi: TextSizePT,
     units_per_em: TextSizeFUnits,
+    face_height: TextSizeFUnits,
 ) -> f32 {
     let point_size = point_size.0;
     let dpi = dpi.0;
     let units_per_em = units_per_em.0;
-    return point_size * dpi / (72.0 * units_per_em);
+    let face_height = face_height.0;
+    // TODO(ish): face_height is as a hack to try to fix the scaling,
+    // may or may not work as intended on platforms
+    let hack_multiplier = units_per_em / face_height;
+    let res = point_size * dpi / (72.0 * units_per_em);
+    return res * hack_multiplier;
 }
