@@ -151,7 +151,7 @@ fn main() {
 
     let mut last_cursor = window.borrow().get_cursor_pos();
 
-    // let mut fps = FPS::new(&mut font);
+    let mut fps = FPS::new();
 
     let dpi = glfw.with_primary_monitor(|_, monitor| {
         let monitor = monitor.expect("error: Unable to get reference to monitor");
@@ -172,6 +172,8 @@ fn main() {
         let _dpi_y = raw_dpi_y * scale_y as f32;
         return dpi_x;
     });
+
+    // let dpi = 96.0;
 
     println!(
         "dpi: {}, units_per_em: {}, height: {}",
@@ -322,7 +324,7 @@ fn main() {
         }
 
         text_shader.use_shader();
-        // fps.update_and_render(dpi);
+        fps.update_and_render(&mut font, dpi);
         {
             let text = "qwertyuiopasd";
             let font_size = TextSizePT(72.0 * 1.0);
@@ -453,23 +455,21 @@ fn handle_window_event(
     *last_cursor = cursor;
 }
 
-struct FPS<'a> {
+struct FPS {
     previous_time: std::time::Instant,
     frames: usize,
-    font: &'a mut Font<'a>,
 }
 
-impl<'a> FPS<'a> {
-    fn new(font: &'a mut Font<'a>) -> Self {
+impl FPS {
+    fn new() -> Self {
         return Self {
             previous_time: std::time::Instant::now(),
             frames: 0,
-            font,
         };
     }
 
     /// Update and render fps
-    fn update_and_render(&mut self, dpi: f32) {
+    fn update_and_render(&mut self, font: &mut Font, dpi: f32) {
         self.frames += 1;
 
         let current = std::time::Instant::now();
@@ -479,7 +479,7 @@ impl<'a> FPS<'a> {
         let fps_string = format!("fps: {:.2}", fps);
         Text::render(
             &fps_string,
-            &mut self.font,
+            font,
             TextSizePT(10.0),
             &glm::vec2(20.0, 25.0),
             TextSizePT(dpi),
