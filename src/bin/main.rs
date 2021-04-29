@@ -72,6 +72,12 @@ fn main() {
     )
     .unwrap();
 
+    let smooth_2d_color_shader = Shader::new(
+        std::path::Path::new("shaders/shader_2D_smooth_color.vert"),
+        std::path::Path::new("shaders/shader_2D_smooth_color.frag"),
+    )
+    .unwrap();
+
     let text_shader = Shader::new(
         std::path::Path::new("shaders/text.vert"),
         std::path::Path::new("shaders/text.frag"),
@@ -97,6 +103,11 @@ fn main() {
         "smooth_3d_color: uniforms: {:?} attributes: {:?}",
         smooth_3d_color_shader.get_uniforms(),
         smooth_3d_color_shader.get_attributes(),
+    );
+    println!(
+        "smooth_2d_color: uniforms: {:?} attributes: {:?}",
+        smooth_2d_color_shader.get_uniforms(),
+        smooth_2d_color_shader.get_attributes(),
     );
     println!(
         "text: uniforms: {:?} attributes: {:?}",
@@ -140,20 +151,40 @@ fn main() {
 
     let mut last_cursor = window.borrow().get_cursor_pos();
 
-    let mut fps = FPS::new(&mut font);
+    // let mut fps = FPS::new(&mut font);
 
     let dpi = glfw.with_primary_monitor(|_, monitor| {
         let monitor = monitor.expect("error: Unable to get reference to monitor");
         let (size_x, size_y) = monitor.get_physical_size();
+        println!("monitor: size_x: {}, size_y: {}", size_x, size_y);
         let video_mode = monitor.get_video_mode().unwrap();
         let (res_x, res_y) = (video_mode.width, video_mode.height);
+        println!("monitor: res_x: {}, res_y: {}", res_x, res_y);
         let raw_dpi_x = res_x as f32 * 25.4 / size_x as f32;
         let raw_dpi_y = res_y as f32 * 25.4 / size_y as f32;
+        println!(
+            "monitor: raw_dpi_x: {}, raw_dpi_y: {}",
+            raw_dpi_x, raw_dpi_y
+        );
         let (scale_x, scale_y) = monitor.get_content_scale();
+        println!("monitor: scale_x: {}, scale_y: {}", scale_x, scale_y);
         let dpi_x = raw_dpi_x * scale_x as f32;
         let _dpi_y = raw_dpi_y * scale_y as f32;
         return dpi_x;
     });
+
+    println!(
+        "dpi: {}, units_per_em: {}, height: {}",
+        dpi,
+        font.get_face().units_per_em().unwrap(),
+        font.get_face().height()
+    );
+
+    let (window_scale_x, window_scale_y) = window.borrow().get_content_scale();
+    println!(
+        "window: scale_x: {}, scale_y: {}",
+        window_scale_x, window_scale_y,
+    );
 
     while !window.borrow().should_close() {
         glfw.poll_events();
@@ -191,6 +222,10 @@ fn main() {
         );
         smooth_3d_color_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
         smooth_3d_color_shader.set_mat4("model\0", &glm::identity());
+
+        smooth_2d_color_shader.use_shader();
+        smooth_2d_color_shader.set_mat4("projection\0", &glm::convert(camera.get_ortho_matrix()));
+        smooth_2d_color_shader.set_mat4("model\0", &glm::identity());
 
         directional_light_shader.use_shader();
         directional_light_shader.set_mat4(
@@ -287,7 +322,57 @@ fn main() {
         }
 
         text_shader.use_shader();
-        fps.update_and_render(dpi);
+        // fps.update_and_render(dpi);
+        {
+            let text = "qwertyuiopasd";
+            let font_size = TextSizePT(72.0 * 1.0);
+            let text_pos = glm::vec2(20.0, 50.0);
+            text_shader.use_shader();
+            Text::render(text, &mut font, font_size, &text_pos, TextSizePT(dpi));
+            Text::render_debug(
+                text,
+                &mut font,
+                font_size,
+                &text_pos,
+                TextSizePT(dpi),
+                &mut imm,
+                &smooth_2d_color_shader,
+            );
+            let text = "fghjklzxcvbnm";
+            let text_pos = text_pos + glm::vec2(0.0, 250.0);
+            text_shader.use_shader();
+            Text::render(text, &mut font, font_size, &text_pos, TextSizePT(dpi));
+            Text::render_debug(
+                text,
+                &mut font,
+                font_size,
+                &text_pos,
+                TextSizePT(dpi),
+                &mut imm,
+                &smooth_2d_color_shader,
+            );
+            let text = "0123456789!@#";
+            let text_pos = text_pos + glm::vec2(0.0, 250.0);
+            text_shader.use_shader();
+            Text::render(text, &mut font, font_size, &text_pos, TextSizePT(dpi));
+            Text::render_debug(
+                text,
+                &mut font,
+                font_size,
+                &text_pos,
+                TextSizePT(dpi),
+                &mut imm,
+                &smooth_2d_color_shader,
+            );
+        }
+        {
+            let (width, height) = window.borrow().get_size();
+            let text = format!("width: {}, height: {}", width, height);
+            let font_size = TextSizePT(72.0 * 0.25);
+            let text_pos = glm::vec2(290.0, 50.0);
+            text_shader.use_shader();
+            Text::render(&text, &mut font, font_size, &text_pos, TextSizePT(dpi));
+        }
 
         window.borrow_mut().swap_buffers();
     }

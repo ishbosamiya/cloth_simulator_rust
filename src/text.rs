@@ -8,6 +8,9 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::path::Path as StdPath;
 
+use crate::gpu_immediate::*;
+use crate::shader::Shader;
+
 struct Builder(lyon::path::path::Builder);
 
 impl ttf::OutlineBuilder for Builder {
@@ -139,6 +142,10 @@ impl<'a> Font<'a> {
         P: AsRef<StdPath>,
     {
         return std::fs::read(&path).expect("error: Path to font didn't exist");
+    }
+
+    pub fn get_face(&self) -> &ttf::Face {
+        return &self.face;
     }
 
     fn build_character_mesh(
@@ -384,6 +391,97 @@ impl Text {
                 }
             }
         }
+
+        if depth_test_enabled {
+            unsafe {
+                gl::Enable(gl::DEPTH_TEST);
+            }
+        }
+    }
+
+    pub fn render_debug<'b>(
+        string: &str,
+        font: &mut Font,
+        size: TextSizePT,
+        position: &glm::Vec2,
+        dpi: TextSizePT,
+        imm: &'b mut GPUImmediate,
+        shader: &'b Shader,
+    ) {
+        let depth_test_enabled = unsafe { gl::IsEnabled(gl::DEPTH_TEST) != 0 };
+        unsafe {
+            gl::Disable(gl::DEPTH_TEST);
+        }
+        let mut character_poses: Vec<TextSizeFUnits> = Vec::new();
+        let mut current_pos = TextSizeFUnits(0.0);
+        for c in string.chars() {
+            let font_char = font.get_character(c).unwrap();
+            character_poses.push(current_pos);
+            current_pos.0 += font_char.sizing.get_hor_advance().0;
+        }
+        character_poses.push(current_pos);
+
+        let units_per_em = TextSizeFUnits(font.face.units_per_em().unwrap().into());
+        let px_multiplier = funits_to_px_multiplier(size, dpi, units_per_em);
+
+        let text_height = font.face.height();
+        let text_height = TextSizeFUnits(text_height.into());
+        let text_height = funits_to_px(text_height, px_multiplier).0;
+
+        let mut lines = Vec::new();
+        for p in character_poses {
+            let final_pos = glm::vec3(
+                funits_to_px(p, px_multiplier).0 + position[0],
+                position[1],
+                -10.5,
+            );
+
+            lines.push((final_pos, final_pos + glm::vec3(0.0, text_height, 0.0)));
+        }
+
+        lines.push((
+            glm::vec3(position[0], position[1], -10.5),
+            glm::vec3(
+                position[0] + funits_to_px(current_pos, px_multiplier).0,
+                position[1],
+                -10.5,
+            ),
+        ));
+        lines.push((
+            glm::vec3(position[0], position[1] + text_height, -10.5),
+            glm::vec3(
+                position[0] + funits_to_px(current_pos, px_multiplier).0,
+                position[1] + text_height,
+                -10.5,
+            ),
+        ));
+
+        shader.use_shader();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        imm.begin(GPUPrimType::Lines, lines.len() * 2, shader);
+
+        for (p1, p2) in lines {
+            imm.attr_4f(color_attr, 1.0, 1.0, 1.0, 1.0);
+            imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+            imm.attr_4f(color_attr, 1.0, 1.0, 1.0, 1.0);
+            imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+        }
+
+        imm.end();
 
         if depth_test_enabled {
             unsafe {
