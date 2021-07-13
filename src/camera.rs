@@ -33,13 +33,13 @@ impl WindowCamera {
             world_up: up,
             front: glm::vec3(0.0, 0.0, -1.0),
             right: glm::zero(),
-            up: up,
+            up,
             zoom,
         };
 
         camera.update_camera_vectors();
 
-        return camera;
+        camera
     }
 
     fn update_camera_vectors(&mut self) {
@@ -57,11 +57,11 @@ impl WindowCamera {
     }
 
     pub fn get_position(&self) -> glm::DVec3 {
-        return self.position;
+        self.position
     }
 
     pub fn get_view_matrix(&self) -> glm::DMat4 {
-        return glm::look_at(&self.position, &(self.position + self.front), &self.up);
+        glm::look_at(&self.position, &(self.position + self.front), &self.up)
     }
 
     pub fn get_projection_matrix(&self) -> glm::DMat4 {
@@ -70,12 +70,12 @@ impl WindowCamera {
             .upgrade()
             .expect("Window with which camera was made is lost");
         let (width, height) = window.borrow().get_size();
-        return glm::perspective(
+        glm::perspective(
             width as f64 / height as f64,
             self.zoom.to_radians(),
             0.1,
             1000.0,
-        );
+        )
     }
 
     pub fn get_ortho_matrix(&self) -> glm::DMat4 {
@@ -84,7 +84,7 @@ impl WindowCamera {
             .upgrade()
             .expect("Window with which camera was made is lost");
         let (width, height) = window.borrow().get_size();
-        return glm::ortho(0.0, width as f64, 0.0, height as f64, 0.1, 1000.0);
+        glm::ortho(0.0, width as f64, 0.0, height as f64, 0.1, 1000.0)
     }
 
     pub fn pan(
@@ -95,7 +95,9 @@ impl WindowCamera {
         mouse_end_y: f64,
         len: f64,
     ) {
-        if mouse_start_x == mouse_end_x && mouse_start_y == mouse_end_y {
+        if (mouse_start_x - mouse_end_x).abs() < f64::EPSILON
+            && (mouse_start_y - mouse_end_y).abs() < f64::EPSILON
+        {
             return;
         }
         let window = self
@@ -200,7 +202,7 @@ impl WindowCamera {
         let ray_eye = glm::vec4(ray_eye[0], ray_eye[1], -1.0, 0.0);
 
         let ray_wor = glm::inverse(&self.get_view_matrix()) * ray_eye;
-        let result = glm::normalize(&glm::vec4_to_vec3(&ray_wor));
-        return result;
+
+        glm::normalize(&glm::vec4_to_vec3(&ray_wor))
     }
 }
