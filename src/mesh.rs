@@ -104,7 +104,7 @@ pub enum MeshError {
 
 impl From<MeshReaderError> for MeshError {
     fn from(err: MeshReaderError) -> MeshError {
-        return MeshError::MeshReader(err);
+        MeshError::MeshReader(err)
     }
 }
 
@@ -119,9 +119,15 @@ impl std::fmt::Display for MeshError {
 
 impl std::error::Error for MeshError {}
 
+impl<END, EVD, EED, EFD> Default for Mesh<END, EVD, EED, EFD> {
+    fn default() -> Self {
+        Mesh::new()
+    }
+}
+
 impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
     pub fn new() -> Mesh<END, EVD, EED, EFD> {
-        return Mesh {
+        Mesh {
             nodes: Arena::new(),
             verts: Arena::new(),
             edges: Arena::new(),
@@ -129,125 +135,125 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
 
             gl_mesh: None,
             bvh: None,
-        };
+        }
     }
 
     pub fn get_faces(&self) -> &Arena<Face<EFD>> {
-        return &self.faces;
+        &self.faces
     }
 
     pub fn get_edges(&self) -> &Arena<Edge<EED>> {
-        return &self.edges;
+        &self.edges
     }
 
     pub fn get_verts(&self) -> &Arena<Vert<EVD>> {
-        return &self.verts;
+        &self.verts
     }
 
     pub fn get_nodes(&self) -> &Arena<Node<END>> {
-        return &self.nodes;
+        &self.nodes
     }
 
     pub fn get_faces_mut(&mut self) -> &mut Arena<Face<EFD>> {
-        return &mut self.faces;
+        &mut self.faces
     }
 
     pub fn get_edges_mut(&mut self) -> &mut Arena<Edge<EED>> {
-        return &mut self.edges;
+        &mut self.edges
     }
 
     pub fn get_verts_mut(&mut self) -> &mut Arena<Vert<EVD>> {
-        return &mut self.verts;
+        &mut self.verts
     }
 
     pub fn get_nodes_mut(&mut self) -> &mut Arena<Node<END>> {
-        return &mut self.nodes;
+        &mut self.nodes
     }
 
     pub fn get_face(&self, index: FaceIndex) -> Option<&Face<EFD>> {
-        return self.faces.get(index.0);
+        self.faces.get(index.0)
     }
 
     pub fn get_edge(&self, index: EdgeIndex) -> Option<&Edge<EED>> {
-        return self.edges.get(index.0);
+        self.edges.get(index.0)
     }
 
     pub fn get_vert(&self, index: VertIndex) -> Option<&Vert<EVD>> {
-        return self.verts.get(index.0);
+        self.verts.get(index.0)
     }
 
     pub fn get_node(&self, index: NodeIndex) -> Option<&Node<END>> {
-        return self.nodes.get(index.0);
+        self.nodes.get(index.0)
     }
 
     pub fn get_face_mut(&mut self, index: FaceIndex) -> Option<&mut Face<EFD>> {
-        return self.faces.get_mut(index.0);
+        self.faces.get_mut(index.0)
     }
 
     pub fn get_edge_mut(&mut self, index: EdgeIndex) -> Option<&mut Edge<EED>> {
-        return self.edges.get_mut(index.0);
+        self.edges.get_mut(index.0)
     }
 
     pub fn get_vert_mut(&mut self, index: VertIndex) -> Option<&mut Vert<EVD>> {
-        return self.verts.get_mut(index.0);
+        self.verts.get_mut(index.0)
     }
 
     pub fn get_node_mut(&mut self, index: NodeIndex) -> Option<&mut Node<END>> {
-        return self.nodes.get_mut(index.0);
+        self.nodes.get_mut(index.0)
     }
 
     pub fn get_bvh(&self) -> &Option<BVHTree<FaceIndex>> {
-        return &self.bvh;
+        &self.bvh
     }
 
     /// Adds an empty Node and gives back mutable reference to it
     ///
     /// Use with caution
     fn add_empty_node(&mut self, pos: glm::DVec3) -> &mut Node<END> {
-        let node_index = self.nodes.insert_with(|self_index| {
-            return Node::new(NodeIndex(self_index), pos);
-        });
-        return &mut self.nodes[node_index];
+        let node_index = self
+            .nodes
+            .insert_with(|self_index| Node::new(NodeIndex(self_index), pos));
+        &mut self.nodes[node_index]
     }
 
     /// Adds an empty Vert and gives back mutable reference to it
     ///
     /// Use with caution
     fn add_empty_vert(&mut self) -> &mut Vert<EVD> {
-        let vert_index = self.verts.insert_with(|self_index| {
-            return Vert::new(VertIndex(self_index));
-        });
-        return &mut self.verts[vert_index];
+        let vert_index = self
+            .verts
+            .insert_with(|self_index| Vert::new(VertIndex(self_index)));
+        &mut self.verts[vert_index]
     }
 
     /// Adds an empty Vert and gives index of it
     ///
     /// Use with caution
     fn add_empty_vert_index(&mut self) -> VertIndex {
-        let vert_index = self.verts.insert_with(|self_index| {
-            return Vert::new(VertIndex(self_index));
-        });
-        return VertIndex(vert_index);
+        let vert_index = self
+            .verts
+            .insert_with(|self_index| Vert::new(VertIndex(self_index)));
+        VertIndex(vert_index)
     }
 
     /// Adds an empty Edge and gives index of it
     ///
     /// Use with caution
     fn add_empty_edge_index(&mut self) -> EdgeIndex {
-        let edge_index = self.edges.insert_with(|self_index| {
-            return Edge::new(EdgeIndex(self_index));
-        });
-        return EdgeIndex(edge_index);
+        let edge_index = self
+            .edges
+            .insert_with(|self_index| Edge::new(EdgeIndex(self_index)));
+        EdgeIndex(edge_index)
     }
 
     /// Adds an empty Face and gives index of it
     ///
     /// Use with caution
     fn add_empty_face_index(&mut self) -> FaceIndex {
-        let face_index = self.faces.insert_with(|self_index| {
-            return Face::new(FaceIndex(self_index));
-        });
-        return FaceIndex(face_index);
+        let face_index = self
+            .faces
+            .insert_with(|self_index| Face::new(FaceIndex(self_index)));
+        FaceIndex(face_index)
     }
 
     /// Gives the connecting edge index if there exists one
@@ -263,13 +269,13 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             }
         }
 
-        return None;
+        None
     }
 
     pub fn read(&mut self, path: &Path) -> Result<(), MeshError> {
         let data = MeshReader::read(path)?;
 
-        if data.uvs.len() == 0 || data.face_has_uv == false {
+        if data.uvs.is_empty() || !data.face_has_uv {
             return Err(MeshError::NoUV);
         }
 
@@ -297,7 +303,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
                 // Update node with vert
                 node.verts.push(vert.self_index);
                 // If MeshReader has found "vertex normal" information, store it in the Node
-                if data.face_has_normal && data.normals.len() > 0 {
+                if data.face_has_normal && !data.normals.is_empty() {
                     node.set_normal(data.normals[*normal_index]);
                 }
             }
@@ -354,7 +360,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
         let mut loose_nodes = Vec::new();
         self.nodes
             .iter()
-            .filter(|(_, node)| node.verts.len() == 0)
+            .filter(|(_, node)| node.verts.is_empty())
             .for_each(|(_, node)| {
                 loose_nodes.push(node.self_index);
             });
@@ -391,7 +397,7 @@ impl<END, EVD, EED, EFD> Mesh<END, EVD, EED, EFD> {
             }
         }
 
-        return Ok(());
+        Ok(())
     }
 
     pub fn generate_gl_mesh(&mut self, use_face_normal: bool) {
@@ -527,7 +533,7 @@ pub struct MeshDrawData<'a> {
 
 impl<'a> MeshDrawData<'a> {
     pub fn new(imm: &'a mut GPUImmediate, shader: &'a Shader) -> Self {
-        return MeshDrawData { imm, shader };
+        MeshDrawData { imm, shader }
     }
 }
 
@@ -548,7 +554,7 @@ impl std::error::Error for MeshDrawError {}
 
 impl From<()> for MeshDrawError {
     fn from(_err: ()) -> MeshDrawError {
-        return MeshDrawError::ErrorWhileDrawing;
+        MeshDrawError::ErrorWhileDrawing
     }
 }
 
@@ -629,7 +635,7 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
 
         imm.end();
 
-        return Ok(());
+        Ok(())
     }
 
     fn draw_wireframe(&self, draw_data: &mut MeshDrawData) -> Result<(), MeshDrawError> {
@@ -672,7 +678,7 @@ impl<END, EVD, EED, EFD> Drawable<MeshDrawData<'_>, MeshDrawError> for Mesh<END,
 
         imm.end();
 
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -706,43 +712,43 @@ impl<END, EVD, EED, EFD> AABB for Mesh<END, EVD, EED, EFD> {
             }
         }
 
-        return bv;
+        bv
     }
 }
 
 impl<T> Face<T> {
     pub fn new(self_index: FaceIndex) -> Face<T> {
-        return Face {
+        Face {
             self_index,
             normal: None,
             extra_data: None,
 
             verts: Vec::new(),
-        };
+        }
     }
 
     pub fn get_verts(&self) -> &AdjacentVerts {
-        return &self.verts;
+        &self.verts
     }
 }
 
 impl<T> Edge<T> {
     pub fn new(self_index: EdgeIndex) -> Edge<T> {
-        return Edge {
+        Edge {
             self_index,
             extra_data: None,
 
             verts: None,
             faces: Vec::new(),
-        };
+        }
     }
 
     pub fn get_self_index(&self) -> EdgeIndex {
-        return self.self_index;
+        self.self_index
     }
 
     pub fn get_verts(&self) -> &Option<(VertIndex, VertIndex)> {
-        return &self.verts;
+        &self.verts
     }
 
     /// Checks if self has the vert specified via VertIndex
@@ -750,16 +756,12 @@ impl<T> Edge<T> {
         match self.verts {
             Some((v1_index, v2_index)) => {
                 if v1_index == vert_index {
-                    return true;
-                } else if v2_index == vert_index {
-                    return true;
+                    true
                 } else {
-                    return false;
+                    v2_index == vert_index
                 }
             }
-            None => {
-                return false;
-            }
+            None => false,
         }
     }
 
@@ -769,55 +771,52 @@ impl<T> Edge<T> {
         match self.verts {
             Some((v1_index, v2_index)) => {
                 if v1_index == vert_index {
-                    return Some(v2_index);
+                    Some(v2_index)
                 } else if v2_index == vert_index {
-                    return Some(v1_index);
+                    Some(v1_index)
                 } else {
-                    return None;
+                    None
                 }
             }
-            None => return None,
+            None => None,
         }
     }
 
     /// Swaps the ordering of the vert indices in self.verts if it exists
     pub fn swap_verts(&mut self) {
-        match self.verts {
-            Some((v1_index, v2_index)) => {
-                self.verts = Some((v2_index, v1_index));
-            }
-            _ => (),
+        if let Some((v1_index, v2_index)) = self.verts {
+            self.verts = Some((v2_index, v1_index));
         }
     }
 }
 
 impl<T> Vert<T> {
     pub fn new(self_index: VertIndex) -> Vert<T> {
-        return Vert {
+        Vert {
             self_index,
             uv: None,
             extra_data: None,
 
             node: None,
             edges: Vec::new(),
-        };
+        }
     }
 
     pub fn get_node_index(&self) -> Option<NodeIndex> {
-        return self.node;
+        self.node
     }
 }
 
 impl<T> Node<T> {
     pub fn new(self_index: NodeIndex, pos: glm::DVec3) -> Node<T> {
-        return Node {
+        Node {
             self_index,
             pos,
             normal: None,
             extra_data: None,
 
             verts: Vec::new(),
-        };
+        }
     }
 
     pub fn set_normal(&mut self, normal: glm::DVec3) {
@@ -837,9 +836,10 @@ fn _add_as_set<T>(vec: &mut Vec<T>, val: T)
 where
     T: PartialEq,
 {
-    if vec.contains(&val) == false {
-        vec.push(val);
+    if vec.contains(&val) {
+        return;
     }
+    vec.push(val);
 }
 
 #[cfg(test)]
@@ -857,10 +857,7 @@ mod tests {
         }
         assert_eq!(mesh.edges.len(), 7);
         for (_, edge) in &mesh.edges {
-            match edge.verts {
-                Some(_) => assert!(true),
-                None => assert!(false),
-            }
+            assert!(edge.verts.is_some());
         }
         assert_eq!(mesh.verts.len(), 7);
         for (_, vert) in &mesh.verts {
@@ -877,12 +874,14 @@ mod tests {
     #[test]
     fn mesh_no_uv() {
         let mut mesh = simple::Mesh::new();
-        match mesh.read(&Path::new("tests/obj_test_05_square_no_uv.obj")) {
-            Err(err) => match err {
-                MeshError::NoUV => (),
-                _ => assert!(false),
-            },
-            _ => assert!(false),
+        let res = mesh.read(&Path::new("tests/obj_test_05_square_no_uv.obj"));
+        if let Err(err) = res {
+            match err {
+                MeshError::NoUV => {}
+                _ => unreachable!(),
+            }
+        } else {
+            unreachable!()
         }
     }
 }
