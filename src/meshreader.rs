@@ -23,7 +23,7 @@ pub enum MeshReaderError {
 
 impl From<std::io::Error> for MeshReaderError {
     fn from(err: std::io::Error) -> MeshReaderError {
-        return MeshReaderError::Io(err);
+        MeshReaderError::Io(err)
     }
 }
 
@@ -44,9 +44,9 @@ impl MeshReader {
         match path.extension() {
             Some(extension) => match extension.to_str().unwrap() {
                 "obj" => MeshReader::read_obj(path),
-                _ => return Err(MeshReaderError::Unknown),
+                _ => Err(MeshReaderError::Unknown),
             },
-            None => return Err(MeshReaderError::Unknown),
+            None => Err(MeshReaderError::Unknown),
         }
     }
 
@@ -64,11 +64,11 @@ impl MeshReader {
 
         for line in reader.lines() {
             let line = line?;
-            if line.starts_with("#") {
+            if line.starts_with('#') {
                 continue;
             }
-            let vals: Vec<&str> = line.split(" ").collect();
-            assert!(vals.len() > 0);
+            let vals: Vec<&str> = line.split(' ').collect();
+            assert!(!vals.is_empty());
             match vals[0] {
                 "v" => {
                     // Don't currently support positions with 4 or more coordinates
@@ -116,7 +116,7 @@ impl MeshReader {
                             3 => {
                                 let pos_index: usize = indices[0].parse().unwrap();
                                 let uv_index: usize;
-                                if indices[1] != "" {
+                                if !indices[1].is_empty() {
                                     uv_index = indices[1].parse().unwrap();
                                 } else {
                                     uv_index = usize::MAX;
@@ -135,7 +135,7 @@ impl MeshReader {
                             }
                         }
                     }
-                    assert!(face_i.len() != 0);
+                    assert!(!face_i.is_empty());
                     face_indices.push(face_i);
                 }
                 "l" => {
@@ -155,7 +155,7 @@ impl MeshReader {
 
         // TODO(ish): validate the indices
 
-        return Ok(MeshReader {
+        Ok(MeshReader {
             positions,
             uvs,
             normals,
@@ -163,7 +163,7 @@ impl MeshReader {
             face_has_uv,
             face_has_normal,
             line_indices,
-        });
+        })
     }
 }
 
