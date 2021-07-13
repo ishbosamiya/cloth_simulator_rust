@@ -10,20 +10,21 @@ const MAX_TREETYPE: u8 = 32;
 
 lazy_static! {
     static ref BVHTREE_KDOP_AXES: Vec<glm::TVec3<Scalar>> = {
-        let mut v = Vec::with_capacity(13);
-        v.push(glm::vec3(1.0, 0.0, 0.0));
-        v.push(glm::vec3(0.0, 1.0, 0.0));
-        v.push(glm::vec3(0.0, 0.0, 1.0));
-        v.push(glm::vec3(1.0, 1.0, 1.0));
-        v.push(glm::vec3(1.0, -1.0, 1.0));
-        v.push(glm::vec3(1.0, 1.0, -1.0));
-        v.push(glm::vec3(1.0, -1.0, -1.0));
-        v.push(glm::vec3(1.0, 1.0, 0.0));
-        v.push(glm::vec3(1.0, 0.0, 1.0));
-        v.push(glm::vec3(0.0, 1.0, 1.0));
-        v.push(glm::vec3(1.0, -1.0, 0.0));
-        v.push(glm::vec3(1.0, 0.0, -1.0));
-        v.push(glm::vec3(0.0, 1.0, -1.0));
+        let v = vec![
+            glm::vec3(1.0, 0.0, 0.0),
+            glm::vec3(0.0, 1.0, 0.0),
+            glm::vec3(0.0, 0.0, 1.0),
+            glm::vec3(1.0, 1.0, 1.0),
+            glm::vec3(1.0, -1.0, 1.0),
+            glm::vec3(1.0, 1.0, -1.0),
+            glm::vec3(1.0, -1.0, -1.0),
+            glm::vec3(1.0, 1.0, 0.0),
+            glm::vec3(1.0, 0.0, 1.0),
+            glm::vec3(0.0, 1.0, 1.0),
+            glm::vec3(1.0, -1.0, 0.0),
+            glm::vec3(1.0, 0.0, -1.0),
+            glm::vec3(0.0, 1.0, -1.0),
+        ];
         assert_eq!(v.len(), 13);
         v
     };
@@ -36,7 +37,7 @@ struct BVHNodeIndex(pub Index);
 
 impl BVHNodeIndex {
     fn unknown() -> Self {
-        return Self(Index::from_raw_parts(usize::MAX, u64::MAX));
+        Self(Index::from_raw_parts(usize::MAX, u64::MAX))
     }
 }
 
@@ -58,7 +59,7 @@ where
     T: Copy,
 {
     fn new() -> Self {
-        return Self {
+        Self {
             children: Vec::new(),
             parent: None,
 
@@ -66,13 +67,13 @@ where
             elem_index: None,
             totnode: 0,
             main_axis: 0,
-        };
+        }
     }
 
     fn min_max_init(&mut self, start_axis: u8, stop_axis: u8) {
         let bv = &mut self.bv;
         for axis_iter in start_axis..stop_axis {
-            bv[((2 * axis_iter) + 0) as usize] = Scalar::MAX;
+            bv[(2 * axis_iter) as usize] = Scalar::MAX;
             bv[((2 * axis_iter) + 1) as usize] = -Scalar::MAX;
         }
     }
@@ -116,7 +117,7 @@ where
             }
         }
 
-        return true;
+        true
     }
 }
 
@@ -167,24 +168,24 @@ impl BVHBuildHelper {
         branches_on_level: [usize; 32],
         remain_leafs: usize,
     ) -> Self {
-        return Self {
+        Self {
             totleafs,
             leafs_per_child,
             branches_on_level,
             remain_leafs,
-        };
+        }
     }
 
     /// Return the min index of all the leafs achievable with the given branch
     fn implicit_leafs_index(&self, depth: usize, child_index: usize) -> usize {
         let min_leaf_index = child_index * self.leafs_per_child[depth - 1];
         if min_leaf_index <= self.remain_leafs {
-            return min_leaf_index;
+            min_leaf_index
         } else if self.leafs_per_child[depth] != 0 {
-            return self.totleafs
-                - (self.branches_on_level[depth - 1] - child_index) * self.leafs_per_child[depth];
+            self.totleafs
+                - (self.branches_on_level[depth - 1] - child_index) * self.leafs_per_child[depth]
         } else {
-            return self.remain_leafs;
+            self.remain_leafs
         }
     }
 }
@@ -207,14 +208,14 @@ impl<'a> BVHDivNodesData<'a> {
         i: usize,
         first_of_next_level: usize,
     ) -> Self {
-        return Self {
+        Self {
             brances_array_start,
             tree_offset,
             data,
             depth,
             i,
             first_of_next_level,
-        };
+        }
     }
 }
 
@@ -231,7 +232,7 @@ where
     T: Copy,
 {
     fn new(index_1: T, index_2: T) -> Self {
-        return Self { index_1, index_2 };
+        Self { index_1, index_2 }
     }
 }
 
@@ -241,7 +242,7 @@ where
 {
     pub fn new(max_size: usize, epsilon: Scalar, tree_type: u8, axis: u8) -> Self {
         assert!(
-            tree_type >= 2 && tree_type <= MAX_TREETYPE,
+            (2..=MAX_TREETYPE).contains(&tree_type),
             "tree_type must be >= 2 and <= {}",
             MAX_TREETYPE
         );
@@ -289,7 +290,7 @@ where
                 .resize(tree_type.into(), BVHNodeIndex::unknown());
         }
 
-        return Self {
+        Self {
             nodes,
             node_array,
 
@@ -300,11 +301,11 @@ where
             stop_axis,
             axis,
             tree_type,
-        };
+        }
     }
 
     pub fn insert(&mut self, index: T, co_many: Vec<glm::TVec3<Scalar>>) {
-        assert!(self.totbranch <= 0);
+        assert!(self.totbranch == 0);
 
         self.nodes[self.totleaf] = BVHNodeIndex(self.node_array.get_unknown_index(self.totleaf));
         let node = self.node_array.get_unknown_mut(self.totleaf);
@@ -374,7 +375,7 @@ where
         let nnodes = (remain + tree_type - 2) / (tree_type - 1);
         let remain_leafs = remain + nnodes;
 
-        return BVHBuildHelper::new(totleafs, leafs_per_child, branches_on_level, remain_leafs);
+        BVHBuildHelper::new(totleafs, leafs_per_child, branches_on_level, remain_leafs)
     }
 
     fn bvh_insertion_sort(&mut self, lo: usize, hi: usize, axis: usize) {
@@ -418,13 +419,11 @@ where
                 node_a_j = self.node_array.get(self.nodes[j].0).unwrap();
             }
 
-            if !(i < j) {
+            if i >= j {
                 return i;
             }
 
-            let temp = self.nodes[i];
-            self.nodes[i] = self.nodes[j];
-            self.nodes[j] = temp;
+            self.nodes.swap(i, j);
 
             i += 1;
         }
@@ -437,24 +436,20 @@ where
 
         if node_mid.bv[axis] < node_lo.bv[axis] {
             if node_hi.bv[axis] < node_mid.bv[axis] {
-                return self.nodes[mid];
+                self.nodes[mid]
+            } else if node_hi.bv[axis] < node_lo.bv[axis] {
+                self.nodes[hi]
             } else {
-                if node_hi.bv[axis] < node_lo.bv[axis] {
-                    return self.nodes[hi];
-                } else {
-                    return self.nodes[lo];
-                }
+                self.nodes[lo]
+            }
+        } else if node_hi.bv[axis] < node_mid.bv[axis] {
+            if node_hi.bv[axis] < node_lo.bv[axis] {
+                self.nodes[lo]
+            } else {
+                self.nodes[hi]
             }
         } else {
-            if node_hi.bv[axis] < node_mid.bv[axis] {
-                if node_hi.bv[axis] < node_lo.bv[axis] {
-                    return self.nodes[lo];
-                } else {
-                    return self.nodes[hi];
-                }
-            } else {
-                return self.nodes[mid];
-            }
+            self.nodes[mid]
         }
     }
 
@@ -549,6 +544,7 @@ where
                 .data
                 .implicit_leafs_index(data.depth + 1, child_level_index + 1);
 
+            #[allow(clippy::comparison_chain)]
             if child_leafs_end - child_leafs_begin > 1 {
                 let child_index = BVHNodeIndex(
                     self.node_array
@@ -645,17 +641,15 @@ where
         if node_index > self.totleaf {
             return Err(BVHError::IndexOutOfRange);
         }
-        if co_moving_many.len() > 0 {
-            if co_many.len() != co_moving_many.len() {
-                return Err(BVHError::DifferentNumPoints);
-            }
+        if !co_moving_many.is_empty() && co_many.len() != co_moving_many.len() {
+            return Err(BVHError::DifferentNumPoints);
         }
 
         let node = self.node_array.get_unknown_mut(node_index);
 
         node.create_kdop_hull(self.start_axis, self.stop_axis, co_many, false);
 
-        if co_moving_many.len() > 0 {
+        if !co_moving_many.is_empty() {
             node.create_kdop_hull(self.start_axis, self.stop_axis, co_moving_many, true);
         }
 
@@ -666,7 +660,7 @@ where
             node.bv[(2 * axis_iter) + 1] += self.epsilon; // max
         }
 
-        return Ok(());
+        Ok(())
     }
 
     fn node_join(&mut self, nodes_index: usize) {
@@ -712,9 +706,10 @@ where
 
     fn overlap_thread_num(&self) -> usize {
         let node = self.node_array.get(self.nodes[self.totleaf].0).unwrap();
-        return self.tree_type.min(node.totnode).into();
+        self.tree_type.min(node.totnode).into()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn overlap_traverse_callback<F>(
         &self,
         other: &BVHTree<T>,
@@ -752,7 +747,7 @@ where
                 } else {
                     for j in 0..other.tree_type {
                         let child_index = node_2.children[j as usize];
-                        if let Some(_) = other.node_array.get(child_index.0) {
+                        if other.node_array.get(child_index.0).is_some() {
                             self.overlap_traverse_callback(
                                 other,
                                 node_1_index,
@@ -768,7 +763,7 @@ where
             } else {
                 for j in 0..self.tree_type {
                     let child_index = node_1.children[j as usize];
-                    if let Some(_) = self.node_array.get(child_index.0) {
+                    if self.node_array.get(child_index.0).is_some() {
                         self.overlap_traverse_callback(
                             other,
                             child_index,
@@ -813,7 +808,7 @@ where
                 } else {
                     for j in 0..other.tree_type {
                         let child_index = node_2.children[j as usize];
-                        if let Some(_) = other.node_array.get(child_index.0) {
+                        if other.node_array.get(child_index.0).is_some() {
                             self.overlap_traverse(
                                 other,
                                 node_1_index,
@@ -828,7 +823,7 @@ where
             } else {
                 for j in 0..self.tree_type {
                     let child_index = node_1.children[j as usize];
-                    if let Some(_) = self.node_array.get(child_index.0) {
+                    if self.node_array.get(child_index.0).is_some() {
                         self.overlap_traverse(
                             other,
                             child_index,
@@ -905,10 +900,10 @@ where
                     &mut overlap_pairs,
                 );
             }
-            if overlap_pairs.len() == 0 {
-                return None;
+            if overlap_pairs.is_empty() {
+                None
             } else {
-                return Some(overlap_pairs);
+                Some(overlap_pairs)
             }
         }
     }
@@ -925,11 +920,11 @@ where
         let node = self.node_array.get(node_index.0).unwrap();
 
         if current_level == draw_level {
-            let x1 = node.bv[(2 * 0) + 0] as f32;
-            let x2 = node.bv[(2 * 0) + 1] as f32;
-            let y1 = node.bv[(2 * 1) + 0] as f32;
-            let y2 = node.bv[(2 * 1) + 1] as f32;
-            let z1 = node.bv[(2 * 2) + 0] as f32;
+            let x1 = node.bv[0] as f32;
+            let x2 = node.bv[1] as f32;
+            let y1 = node.bv[(2)] as f32;
+            let y2 = node.bv[(2) + 1] as f32;
+            let z1 = node.bv[(2 * 2)] as f32;
             let z2 = node.bv[(2 * 2) + 1] as f32;
 
             draw_box(imm, x1, x2, y1, y2, z1, z2, pos_attr, color_attr);
@@ -940,7 +935,7 @@ where
         if node.totnode != 0 {
             for i in 0..self.tree_type {
                 let child_index = node.children[i as usize];
-                if let Some(_) = self.node_array.get(child_index.0) {
+                if self.node_array.get(child_index.0).is_some() {
                     self.recursive_draw(
                         child_index,
                         pos_attr,
@@ -968,6 +963,7 @@ fn draw_line(
     imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_box(
     imm: &mut GPUImmediate,
     x1: f32,
@@ -1021,6 +1017,7 @@ fn draw_triangle(
     imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_box_fill(
     imm: &mut GPUImmediate,
     x1: f32,
@@ -1069,11 +1066,11 @@ pub struct BVHDrawData<'a> {
 
 impl<'a> BVHDrawData<'a> {
     pub fn new(imm: &'a mut GPUImmediate, shader: &'a Shader, draw_level: usize) -> Self {
-        return Self {
+        Self {
             imm,
             shader,
             draw_level,
-        };
+        }
     }
 }
 
@@ -1114,10 +1111,11 @@ where
 
         imm.end();
 
-        return Ok(());
+        Ok(())
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub trait AABB {
     type ElementIndex;
     fn give_aabb(&self, elem_index: Self::ElementIndex) -> Vec<Scalar>;
@@ -1137,12 +1135,12 @@ impl<'a, T> BVHOverlapDrawData<'a, T> {
         give_aabb_1: &'a dyn AABB<ElementIndex = T>,
         give_aabb_2: &'a dyn AABB<ElementIndex = T>,
     ) -> Self {
-        return Self {
+        Self {
             imm,
             shader,
             give_aabb_1,
             give_aabb_2,
-        };
+        }
     }
 }
 
@@ -1222,31 +1220,29 @@ where
             gl::Disable(gl::BLEND);
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 
 fn implicit_needed_branches(tree_type: u8, leafs: usize) -> usize {
-    return 1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize;
+    1.max(leafs + tree_type as usize - 3) / (tree_type - 1) as usize
 }
 
-fn get_largest_axis(bv: &Vec<Scalar>) -> u8 {
+fn get_largest_axis(bv: &[Scalar]) -> u8 {
     let middle_point_x = bv[1] - bv[0]; // x axis
     let middle_point_y = bv[3] - bv[2]; // y axis
     let middle_point_z = bv[5] - bv[4]; // z axis
 
     if middle_point_x > middle_point_y {
         if middle_point_x > middle_point_z {
-            return 1; // max x axis
+            1 // max x axis
         } else {
-            return 5; // max z axis
+            5 // max z axis
         }
+    } else if middle_point_y > middle_point_z {
+        3 // max y axis
     } else {
-        if middle_point_y > middle_point_z {
-            return 3; // max y axis
-        } else {
-            return 5; // max z axis
-        }
+        5 // max z axis
     }
 }
 
