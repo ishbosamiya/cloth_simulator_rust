@@ -1,4 +1,3 @@
-use gl;
 use nalgebra_glm as glm;
 use std::convert::TryInto;
 
@@ -15,11 +14,7 @@ pub struct GLVert {
 
 impl GLVert {
     pub fn new(pos: glm::Vec3, uv: glm::Vec2, normal: glm::Vec3) -> GLVert {
-        return GLVert {
-            pos,
-            normal: normal,
-            uv: uv,
-        };
+        GLVert { pos, uv, normal }
     }
 }
 
@@ -43,7 +38,7 @@ impl GLMesh {
 
         mesh.setup();
 
-        return mesh;
+        mesh
     }
 
     fn setup(&mut self) {
@@ -63,10 +58,19 @@ impl GLMesh {
             self.vbo = Some(vbo);
             self.ebo = Some(ebo);
 
-            gl::BindVertexArray(self.vao.unwrap().try_into().unwrap());
+            gl::BindVertexArray(match self.vao {
+                Some(it) => it,
+                _ => unreachable!(),
+            });
 
             // bind verts array
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo.unwrap().try_into().unwrap());
+            gl::BindBuffer(
+                gl::ARRAY_BUFFER,
+                match self.vbo {
+                    Some(it) => it,
+                    _ => unreachable!(),
+                },
+            );
             gl::BufferData(
                 gl::ARRAY_BUFFER,
                 (self.verts.len() * std::mem::size_of::<GLVert>())
@@ -79,7 +83,10 @@ impl GLMesh {
             // bind indices array
             gl::BindBuffer(
                 gl::ELEMENT_ARRAY_BUFFER,
-                self.ebo.unwrap().try_into().unwrap(),
+                match self.ebo {
+                    Some(it) => it,
+                    _ => unreachable!(),
+                },
             );
             gl::BufferData(
                 gl::ELEMENT_ARRAY_BUFFER,
@@ -138,6 +145,6 @@ impl Drawable<(), ()> for GLMesh {
             );
             gl::BindVertexArray(0);
         }
-        return Ok(());
+        Ok(())
     }
 }
