@@ -170,7 +170,7 @@ fn main() {
         println!("monitor: scale_x: {}, scale_y: {}", scale_x, scale_y);
         let dpi_x = raw_dpi_x * scale_x as f32;
         let _dpi_y = raw_dpi_y * scale_y as f32;
-        return dpi_x;
+        dpi_x
     });
 
     // let dpi = 96.0;
@@ -288,7 +288,7 @@ fn main() {
                     }
                 }
 
-                return true;
+                true
             }),
         );
 
@@ -380,6 +380,7 @@ fn main() {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_window_event(
     window: Rc<RefCell<glfw::Window>>,
     event: glfw::WindowEvent,
@@ -455,6 +456,7 @@ fn handle_window_event(
     *last_cursor = cursor;
 }
 
+#[allow(clippy::upper_case_acronyms)]
 struct FPS {
     previous_time: std::time::Instant,
     frames: usize,
@@ -462,10 +464,10 @@ struct FPS {
 
 impl FPS {
     fn new() -> Self {
-        return Self {
+        Self {
             previous_time: std::time::Instant::now(),
             frames: 0,
-        };
+        }
     }
 
     /// Update and render fps
