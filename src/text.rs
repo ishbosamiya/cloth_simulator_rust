@@ -54,59 +54,56 @@ impl CharacterSizing {
         _y_origin: Option<TextSizeFUnits>,
         _bbox: Option<TextRectFUnits>,
     ) -> Self {
-        return Self {
+        Self {
             hor_advance,
             _ver_advance,
             _hor_side_bearing,
             _ver_side_bearing,
             _y_origin,
             _bbox,
-        };
+        }
     }
 
     fn from_face(face: &ttf::Face, glyph_id: ttf::GlyphId) -> Self {
         let bbox = face.glyph_bounding_box(glyph_id);
-        let bbox = match bbox {
-            Some(bbox) => Some(TextRectFUnits {
-                x_min: TextSizeFUnits(bbox.x_min.into()),
-                x_max: TextSizeFUnits(bbox.x_max.into()),
-                y_min: TextSizeFUnits(bbox.y_min.into()),
-                y_max: TextSizeFUnits(bbox.y_max.into()),
-            }),
-            None => None,
-        };
-        return Self::new(
+        let bbox = bbox.map(|bbox| TextRectFUnits {
+            x_min: TextSizeFUnits(bbox.x_min.into()),
+            x_max: TextSizeFUnits(bbox.x_max.into()),
+            y_min: TextSizeFUnits(bbox.y_min.into()),
+            y_max: TextSizeFUnits(bbox.y_max.into()),
+        });
+        Self::new(
             TextSizeFUnits(face.glyph_hor_advance(glyph_id).unwrap().into()),
             option_funits_from_option_u16(face.glyph_ver_advance(glyph_id)),
             option_funits_from_option_i16(face.glyph_hor_side_bearing(glyph_id)),
             option_funits_from_option_i16(face.glyph_ver_side_bearing(glyph_id)),
             option_funits_from_option_i16(face.glyph_y_origin(glyph_id)),
             bbox,
-        );
+        )
     }
 
     fn get_hor_advance(&self) -> TextSizeFUnits {
-        return self.hor_advance;
+        self.hor_advance
     }
 
     fn _get_ver_advance(&self) -> Option<TextSizeFUnits> {
-        return self._ver_advance;
+        self._ver_advance
     }
 
     fn _get_hor_side_bearing(&self) -> Option<TextSizeFUnits> {
-        return self._hor_side_bearing;
+        self._hor_side_bearing
     }
 
     fn _get_ver_side_bearing(&self) -> Option<TextSizeFUnits> {
-        return self._ver_side_bearing;
+        self._ver_side_bearing
     }
 
     fn _get_y_origin(&self) -> Option<TextSizeFUnits> {
-        return self._y_origin;
+        self._y_origin
     }
 
     fn _get_bbox(&self) -> Option<TextRectFUnits> {
-        return self._bbox;
+        self._bbox
     }
 }
 
@@ -117,7 +114,7 @@ struct Character {
 
 impl Character {
     fn new(mesh: Option<VertexBuffers<glm::Vec3, u32>>, sizing: CharacterSizing) -> Self {
-        return Self { mesh, sizing };
+        Self { mesh, sizing }
     }
 }
 
@@ -131,21 +128,21 @@ impl<'a> Font<'a> {
         let face = ttf::Face::from_slice(&font_file, 0)
             .expect("error: Given font file couldn't be parsed");
 
-        return Self {
+        Self {
             face,
             char_map: HashMap::new(),
-        };
+        }
     }
 
     pub fn load_font_file<P>(path: P) -> Vec<u8>
     where
         P: AsRef<StdPath>,
     {
-        return std::fs::read(&path).expect("error: Path to font didn't exist");
+        std::fs::read(&path).expect("error: Path to font didn't exist")
     }
 
     pub fn get_face(&self) -> &ttf::Face {
-        return &self.face;
+        &self.face
     }
 
     fn build_character_mesh(
@@ -172,12 +169,12 @@ impl<'a> Font<'a> {
                 &FillOptions::default(),
                 &mut BuffersBuilder::new(&mut geometry, |vertex: FillVertex| {
                     let pos = vertex.position();
-                    return glm::vec3(pos.x, pos.y, 0.0);
+                    glm::vec3(pos.x, pos.y, 0.0)
                 }),
             )
             .unwrap();
 
-        return Some(geometry);
+        Some(geometry)
     }
 
     fn get_character(&mut self, c: char) -> Option<&Character> {
@@ -210,7 +207,7 @@ impl<'a> Font<'a> {
 
         // add character to cache and return it
         self.char_map.insert(c, character);
-        return self.char_map.get(&c);
+        self.char_map.get(&c)
     }
 }
 
@@ -232,7 +229,7 @@ impl Text {
         let mut current_pos = TextSizeFUnits(0.0);
         for c in string.chars() {
             let font_char = font.get_character(c).unwrap();
-            let poses = character_pos_map.entry(c).or_insert(Vec::new());
+            let poses = character_pos_map.entry(c).or_insert_with(Vec::new);
             poses.push(current_pos);
             current_pos.0 += font_char.sizing.get_hor_advance().0;
         }
@@ -243,7 +240,7 @@ impl Text {
 
         let mut final_pos_map: HashMap<char, Vec<glm::Vec3>> = HashMap::new();
         for (c, poses) in character_pos_map {
-            let final_poses = final_pos_map.entry(c).or_insert(Vec::new());
+            let final_poses = final_pos_map.entry(c).or_insert_with(Vec::new);
             for p in poses {
                 let final_pos = glm::vec3(
                     funits_to_px(p, px_multiplier).0 + position[0],
@@ -338,8 +335,7 @@ impl Text {
                         gl::FLOAT,
                         gl::FALSE,
                         std::mem::size_of::<glm::Mat4>().try_into().unwrap(),
-                        std::ptr::null::<gl::types::GLvoid>()
-                            .offset((0 * std::mem::size_of::<glm::Vec4>()).try_into().unwrap()),
+                        std::ptr::null::<gl::types::GLvoid>().offset((0).try_into().unwrap()),
                     );
                     gl::EnableVertexAttribArray(2);
                     gl::VertexAttribPointer(
@@ -349,7 +345,7 @@ impl Text {
                         gl::FALSE,
                         std::mem::size_of::<glm::Mat4>().try_into().unwrap(),
                         std::ptr::null::<gl::types::GLvoid>()
-                            .offset((1 * std::mem::size_of::<glm::Vec4>()).try_into().unwrap()),
+                            .offset((std::mem::size_of::<glm::Vec4>()).try_into().unwrap()),
                     );
                     gl::EnableVertexAttribArray(3);
                     gl::VertexAttribPointer(
@@ -514,16 +510,10 @@ impl TextSize for TextSizePX {}
 pub struct TextSizeFUnits(pub f32);
 impl TextSize for TextSizeFUnits {}
 fn option_funits_from_option_u16(val: Option<u16>) -> Option<TextSizeFUnits> {
-    match val {
-        Some(v) => return Some(TextSizeFUnits(v.into())),
-        None => return None,
-    }
+    val.map(|v| TextSizeFUnits(v.into()))
 }
 fn option_funits_from_option_i16(val: Option<i16>) -> Option<TextSizeFUnits> {
-    match val {
-        Some(v) => return Some(TextSizeFUnits(v.into())),
-        None => return None,
-    }
+    val.map(|v| TextSizeFUnits(v.into()))
 }
 
 /// Text Rectangle
@@ -546,7 +536,7 @@ pub type TextRectFUnits = TextRect<TextSizeFUnits>;
 fn funits_to_px(from: TextSizeFUnits, multiplier: f32) -> TextSizePX {
     let from = from.0;
 
-    return TextSizePX(from * multiplier);
+    TextSizePX(from * multiplier)
 }
 
 /// Get multiplier needed to convert funits to px
@@ -564,5 +554,5 @@ fn funits_to_px_multiplier(
     // may or may not work as intended on platforms
     let hack_multiplier = units_per_em / face_height;
     let res = point_size * dpi / (72.0 * units_per_em);
-    return res * hack_multiplier;
+    res * hack_multiplier
 }
