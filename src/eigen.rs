@@ -108,15 +108,11 @@ impl MatX {
     }
 
     pub fn data(&self) -> &[Scalar] {
-        unsafe {
-            return std::slice::from_raw_parts(self.data_raw(), self.size());
-        }
+        unsafe { std::slice::from_raw_parts(self.data_raw(), self.size()) }
     }
 
     pub fn data_mut(&mut self) -> &mut [Scalar] {
-        unsafe {
-            return std::slice::from_raw_parts_mut(self.data_raw_mut(), self.size());
-        }
+        unsafe { std::slice::from_raw_parts_mut(self.data_raw_mut(), self.size()) }
     }
 
     pub fn transpose(&self) -> MatX {
@@ -371,15 +367,11 @@ impl VecX {
     }
 
     pub fn data(&self) -> &[Scalar] {
-        unsafe {
-            return std::slice::from_raw_parts(self.data_raw(), self.size());
-        }
+        unsafe { std::slice::from_raw_parts(self.data_raw(), self.size()) }
     }
 
     pub fn data_mut(&mut self) -> &mut [Scalar] {
-        unsafe {
-            return std::slice::from_raw_parts_mut(self.data_raw_mut(), self.size());
-        }
+        unsafe { std::slice::from_raw_parts_mut(self.data_raw_mut(), self.size()) }
     }
 
     pub fn transpose(&self) -> MatX {
@@ -598,9 +590,9 @@ impl SimplicialLLT {
             });
         }
         if value == 1 {
-            return ComputationInfo::Success;
+            ComputationInfo::Success
         } else if value == 2 {
-            return ComputationInfo::NumericalIssue;
+            ComputationInfo::NumericalIssue
         } else {
             panic!("eigen: couldn't set the correct ComputationInfo");
         }
@@ -912,6 +904,7 @@ impl ops::DivAssign<Scalar> for SparseMatrix {
     }
 }
 
+#[allow(clippy::float_cmp)]
 #[cfg(test)]
 mod tests {
     use super::*;
