@@ -64,22 +64,22 @@ impl LinearSpringConstraint {
         node_1_index: mesh::NodeIndex,
         node_2_index: mesh::NodeIndex,
     ) -> Self {
-        return Self {
+        Self {
             spring_stiffness,
             rest_len,
             node_1_index,
             node_2_index,
-        };
+        }
     }
 }
 
 impl PinSpringConstraint {
     fn new(spring_stiffness: f64, rest_pos: glm::DVec3, node_index: mesh::NodeIndex) -> Self {
-        return Self {
+        Self {
             spring_stiffness,
             rest_pos,
             node_index,
-        };
+        }
     }
 }
 
@@ -91,11 +91,11 @@ pub struct ConstraintDrawData<'a> {
 
 impl<'a> ConstraintDrawData<'a> {
     pub fn new(imm: &'a mut GPUImmediate, shader: &'a Shader, draw_linear: bool) -> Self {
-        return ConstraintDrawData {
+        ConstraintDrawData {
             imm,
             shader,
             draw_linear,
-        };
+        }
     }
 }
 
@@ -150,7 +150,7 @@ impl Constraint for LinearSpringConstraint {
         let node_1 = cloth.get_node(self.node_1_index).unwrap();
         let node_2 = cloth.get_node(self.node_2_index).unwrap();
         let p_diff = node_1.pos - node_2.pos;
-        return self.rest_len * (p_diff) / glm::length(&p_diff);
+        self.rest_len * (p_diff) / glm::length(&p_diff)
     }
 }
 
@@ -174,7 +174,7 @@ impl Constraint for PinSpringConstraint {
     }
 
     fn compute_d(&self, _cloth: &cloth::Mesh) -> glm::DVec3 {
-        return self.rest_pos;
+        self.rest_pos
     }
 }
 
@@ -235,7 +235,7 @@ impl Simulation {
         };
         sim.cloth.setup();
         sim.setup_constraints();
-        return sim;
+        sim
     }
 
     /// Panics if mass_matrix is not initialized
@@ -259,22 +259,22 @@ impl Simulation {
     }
 
     fn get_l(&self) -> &SparseMatrix {
-        return &self.l;
+        &self.l
     }
 
     fn get_j(&self) -> &SparseMatrix {
-        return &self.j;
+        &self.j
     }
 
     fn get_y(&self) -> VecX {
         let mut y = VecX::new_with_size(3 * self.cloth.get_nodes().len());
         for (i, (_, node)) in self.cloth.get_nodes().iter().enumerate() {
             // y = 2*q_n - q_(n-1)
-            let y_i = &(2.0 * &node.pos) - &node.extra_data.as_ref().unwrap().prev_pos;
+            let y_i = (2.0 * &node.pos) - node.extra_data.as_ref().unwrap().prev_pos;
             y.set_v3_glm(i, &y_i);
         }
 
-        return y;
+        y
     }
 
     /// Gives f_ext, the external force on each node of the mesh
@@ -335,10 +335,11 @@ impl Simulation {
     }
 
     fn get_prefactored_system_matrix_solver(&self) -> &SimplicialLLT {
-        return &self.prefactored_solver;
+        &self.prefactored_solver
     }
 
     /// Returns the rhs for the global step solve
+    #[allow(clippy::many_single_char_names)]
     fn get_rhs(&self) -> VecX {
         let m = self.get_mass_matrix();
         let y = &self.get_y();
@@ -348,7 +349,7 @@ impl Simulation {
         let f_ext = &self.get_external_forces();
 
         // M*y + h*h*J*d + h*h*f_ext
-        return &(m * y) + &(h * h * &(&(j * d) + f_ext));
+        &(m * y) + &(h * h * &(&(j * d) + f_ext))
     }
 
     /// Solves for the vector d from the paper
@@ -420,7 +421,7 @@ impl Simulation {
         let node_1 = self.cloth.get_node(node_1_index).unwrap();
         let node_2 = self.cloth.get_node(node_2_index).unwrap();
         let len = glm::length(&(node_1.pos - node_2.pos));
-        return LinearSpringConstraint::new(self.spring_stiffness, len, node_1_index, node_2_index);
+        LinearSpringConstraint::new(self.spring_stiffness, len, node_1_index, node_2_index)
     }
 
     pub fn next_step(&mut self, num_iterations: usize) {
@@ -465,7 +466,7 @@ impl Simulation {
     }
 
     fn get_num_constraints(&self) -> usize {
-        return self.constraints.len();
+        self.constraints.len()
     }
 
     pub fn try_toggle_pin_constraint(&mut self, p0: &glm::DVec3, dir: &glm::DVec3) {
@@ -479,16 +480,11 @@ impl Simulation {
             let p1 = node.pos;
             let p1_to_ray_distance = glm::length(&glm::cross(&(p1 - p0), &dir));
 
-            if p1_to_ray_distance < min_dist {
-                if let None = node_best {
-                    node_best = Some(node_index);
-                    node_best_dist = p1_to_ray_distance;
-                } else {
-                    if node_best_dist > p1_to_ray_distance {
-                        node_best = Some(node_index);
-                        node_best_dist = p1_to_ray_distance;
-                    }
-                }
+            if p1_to_ray_distance < min_dist
+                && (node_best.is_none() || node_best_dist > p1_to_ray_distance)
+            {
+                node_best = Some(node_index);
+                node_best_dist = p1_to_ray_distance;
             }
         }
         // Find nearest point within Pin Constraints
@@ -505,14 +501,9 @@ impl Simulation {
                             node_best = None;
                         }
                     }
-                    if let None = constraint_best {
+                    if constraint_best.is_none() || constraint_best_dist > p1_to_ray_distance {
                         constraint_best = Some(constraint_index);
                         constraint_best_dist = p1_to_ray_distance;
-                    } else {
-                        if constraint_best_dist > p1_to_ray_distance {
-                            constraint_best = Some(constraint_index);
-                            constraint_best_dist = p1_to_ray_distance;
-                        }
                     }
                 }
             }
@@ -525,12 +516,10 @@ impl Simulation {
             should_remove_constraint = true;
         } else if node_best.is_some() && constraint_best.is_none() {
             should_remove_constraint = false;
+        } else if constraint_best_dist < node_best_dist {
+            should_remove_constraint = true;
         } else {
-            if constraint_best_dist < node_best_dist {
-                should_remove_constraint = true;
-            } else {
-                should_remove_constraint = false;
-            }
+            should_remove_constraint = false;
         }
 
         if should_remove_constraint {
@@ -573,13 +562,10 @@ impl Drawable<ConstraintDrawData<'_>, ()> for Simulation {
 
         imm.begin_at_most(GPUPrimType::Points, self.constraints.len(), shader);
         for constraint in self.constraints.iter() {
-            match constraint {
-                ConstraintTypes::Pin(pin) => {
-                    imm.attr_4f(color_attr, 0.7, 0.3, 0.1, 1.0);
-                    let pos: glm::Vec3 = glm::convert(pin.rest_pos);
-                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-                }
-                _ => (),
+            if let ConstraintTypes::Pin(pin) = constraint {
+                imm.attr_4f(color_attr, 0.7, 0.3, 0.1, 1.0);
+                let pos: glm::Vec3 = glm::convert(pin.rest_pos);
+                imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
             }
         }
         imm.end();
@@ -587,24 +573,21 @@ impl Drawable<ConstraintDrawData<'_>, ()> for Simulation {
         if draw_linear {
             imm.begin_at_most(GPUPrimType::Lines, self.constraints.len() * 2, shader);
             for constraint in self.constraints.iter() {
-                match constraint {
-                    ConstraintTypes::Linear(con) => {
-                        let node_1 = self.cloth.get_node(con.node_1_index).unwrap();
-                        let node_2 = self.cloth.get_node(con.node_2_index).unwrap();
-                        imm.attr_4f(color_attr, 0.3, 0.7, 0.1, 1.0);
-                        let pos: glm::Vec3 = glm::convert(node_1.pos);
-                        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-                        imm.attr_4f(color_attr, 0.3, 0.7, 0.1, 1.0);
-                        let pos: glm::Vec3 = glm::convert(node_2.pos);
-                        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-                    }
-                    _ => (),
+                if let ConstraintTypes::Linear(con) = constraint {
+                    let node_1 = self.cloth.get_node(con.node_1_index).unwrap();
+                    let node_2 = self.cloth.get_node(con.node_2_index).unwrap();
+                    imm.attr_4f(color_attr, 0.3, 0.7, 0.1, 1.0);
+                    let pos: glm::Vec3 = glm::convert(node_1.pos);
+                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+                    imm.attr_4f(color_attr, 0.3, 0.7, 0.1, 1.0);
+                    let pos: glm::Vec3 = glm::convert(node_2.pos);
+                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
                 }
             }
             imm.end();
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -612,7 +595,7 @@ impl VecX {
     #[inline]
     fn set_v3_glm(&mut self, index: usize, val: &glm::DVec3) {
         let data = self.data_mut();
-        data[3 * index + 0] = val[0];
+        data[3 * index] = val[0];
         data[3 * index + 1] = val[1];
         data[3 * index + 2] = val[2];
     }
@@ -620,22 +603,18 @@ impl VecX {
     #[inline]
     fn get_v3_glm(&self, index: usize) -> glm::DVec3 {
         let data = self.data();
-        return glm::vec3(
-            data[3 * index + 0],
-            data[3 * index + 1],
-            data[3 * index + 2],
-        );
+        glm::vec3(data[3 * index], data[3 * index + 1], data[3 * index + 2])
     }
 }
 
 fn triplet_3_push(triplets: &mut Vec<eigen::Triplet>, i1: usize, i2: usize, value: f64) {
-    triplets.push(eigen::Triplet::new(3 * i1 + 0, 3 * i2 + 0, value));
+    triplets.push(eigen::Triplet::new(3 * i1, 3 * i2, value));
     triplets.push(eigen::Triplet::new(3 * i1 + 1, 3 * i2 + 1, value));
     triplets.push(eigen::Triplet::new(3 * i1 + 2, 3 * i2 + 2, value));
 }
 
 impl mesh::NodeIndex {
     fn get_index(&self) -> usize {
-        return self.0.into_raw_parts().0;
+        self.0.into_raw_parts().0
     }
 }
